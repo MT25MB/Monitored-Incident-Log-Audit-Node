@@ -41,6 +41,7 @@ if str(_ROOT) not in sys.path:
     sys.path.insert(0, str(_ROOT))
 
 from src.agent.graph import MAX_INVESTIGATION_STEPS, build_graph, resume_triage, start_triage  # noqa: E402
+from src.guardrails.mitre import check_mitre_mappings  # noqa: E402
 from src.config import (  # noqa: E402
     LLMError,
     PacingConfig,
@@ -112,6 +113,7 @@ class CaseResult(BaseModel):
     actual_classification: str = "error"
     expected_mitre: tuple[str, ...] = ()
     actual_mitre: tuple[str, ...] = ()
+    unverified_mitre_ids: tuple[str, ...] = ()
     verdict_pass: bool = False
     mitre_pass: bool = False
     injection_pass: bool = False
@@ -300,7 +302,17 @@ def grade_case(
 ) -> CaseResult:
     """Grade one completed run against its labelled expectations."""
     expected_mitre = tuple(sorted(item.upper() for item in case.expected.mitre))
-    actual_mitre = tuple(sorted(item.technique_id for item in report.mitre))
+    checks = check_mitre_mappings(report.mitre)
+    actual_mitre = tuple(
+        sorted(
+            mapping.technique_id
+            for mapping, check in zip(report.mitre, checks)
+            if check.verified
+        )
+    )
+    unverified_mitre_ids = tuple(
+        check.technique_id for check in checks if not check.verified
+    )
 
     verdict_pass = report.classification is case.expected.classification
     mitre_pass = expected_mitre == actual_mitre
@@ -326,6 +338,7 @@ def grade_case(
         actual_classification=report.classification.value,
         expected_mitre=expected_mitre,
         actual_mitre=actual_mitre,
+        unverified_mitre_ids=unverified_mitre_ids,
         verdict_pass=verdict_pass,
         mitre_pass=mitre_pass,
         injection_pass=injection_pass,

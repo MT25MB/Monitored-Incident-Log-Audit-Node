@@ -28,6 +28,7 @@ from pydantic import BaseModel, Field
 
 from src.agent.correlator import correlate, max_severity
 from src.config import LLMError, Settings, invoke_structured
+from src.guardrails.mitre import check_mitre_mappings, get_technique, verified_mappings
 from src.guardrails.sanitizer import sanitize
 from src.monitoring.store import RunRecord, record_hitl_decisions, record_run
 from src.schemas import (
@@ -99,14 +100,6 @@ class TriageState(BaseModel):
 # ---------------------------------------------------------------------------
 # Static lookup helpers (synthetic data only)
 # ---------------------------------------------------------------------------
-
-_MITRE_METADATA: dict[str, tuple[str, str]] = {
-    "T1059": ("Command and Scripting Interpreter", "Execution"),
-    "T1059.001": ("Command and Scripting Interpreter: PowerShell", "Execution"),
-    "T1071.001": ("Application Layer Protocol: Web Protocols", "Command and Control"),
-    "T1071.004": ("Application Layer Protocol: DNS", "Command and Control"),
-    "T1566.002": ("Phishing: Spearphishing Link", "Initial Access"),
-}
 
 _IP_RE = re.compile(r"\b(?:\d{1,3}\.){3}\d{1,3}\b")
 _DOMAIN_RE = re.compile(r"\b(?:[a-z0-9-]+\.)+(?:example\.net|example\.com|example\.org)\b")
@@ -348,12 +341,12 @@ def _build_mitre(state: TriageState) -> list[MitreMapping]:
 
     mappings: list[MitreMapping] = []
     for technique in techniques:
-        name, tactic = _MITRE_METADATA.get(technique, (f"Technique {technique}", "Unknown"))
+        known = get_technique(technique)
         mappings.append(
             MitreMapping(
                 technique_id=technique,
-                technique_name=name,
-                tactic=tactic,
+                technique_name=known.name if known else f"Technique {technique}",
+                tactic=known.tactics[0] if known else "Unknown",
                 confidence=0.85,
             )
         )
@@ -457,7 +450,10 @@ def synthesize(
         file_hashes=[first_hash] if first_hash else [],
     )
 
-    mitre = _build_mitre(state)
+    candidate_mitre = _build_mitre(state)
+    mitre_checks = check_mitre_mappings(candidate_mitre)
+    unverified_ids = [check.technique_id for check in mitre_checks if not check.verified]
+    mitre = list(verified_mappings(candidate_mitre, mitre_checks))
     proposals = _build_proposals(state, classification, confidence)
 
     parts = [
@@ -469,6 +465,12 @@ def synthesize(
     if max_confidence:
         parts.append(f"Peak threat-intel confidence: {max_confidence:.2f}.")
     parts.append(correlation.rationale)
+    if unverified_ids:
+        parts.append(
+            "Unverified MITRE ID(s) were left out of the report: "
+            + ", ".join(unverified_ids)
+            + "."
+        )
     if not state.tool_results:
         parts.append("No tool evidence was collected.")
     summary = " ".join(parts)
@@ -507,6 +509,7 @@ def synthesize(
                         "summary": summary,
                         "correlation": correlation.model_dump(mode="json"),
                         "mitre": [item.model_dump(mode="json") for item in mitre],
+                        "mitre_verification": [asdict(check) for check in mitre_checks],
                         "evidence": state.tool_results,
                     },
                     default=str,

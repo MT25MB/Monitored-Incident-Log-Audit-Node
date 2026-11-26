@@ -75,6 +75,7 @@ src/
   schemas.py              Pydantic contracts: alerts, IOCs, MITRE, HITL, traces
   config.py               Provider chain, pacing, backoff, fallback, telemetry
   guardrails/sanitizer.py Redaction, injection detection, escaping, wrapping
+  guardrails/mitre.py     Local ATT&CK catalogue and technique verification
   tools/siem.py           DuckDB seeding and three read-only tools
   agent/graph.py          LangGraph machine, step cap, HITL checkpoint
   agent/correlator.py     Deterministic IOC, asset, and anomaly correlation
