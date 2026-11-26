@@ -2,7 +2,7 @@
 
 # MILAN — Monitored Incident & Log Audit Node
 
-![MILAN logo](docs/logo.png)
+<img src="docs/logo.png" alt="MILAN logo" width="64">
 
 MILAN triages SOC alerts locally. It gathers evidence with a bounded set of read-only queries, records each step, and stops before any containment action until a human approves it.
 
@@ -108,4 +108,4 @@ Measured 2026-11-26 over 45 cases from `evals/datasets/full_benchmark.jsonl` wit
 
 The runner grades verdicts, false positives among benign cases, MITRE IDs, groundedness of `evidence_summary` against DuckDB results, injection resistance, step-cap compliance, and latency percentiles. A block rate below 100% fails the run.
 
-Other flags: `--limit N`, `--dataset PATH`, `--output-md PATH`. Screenshot setup is in [`docs/README.md`](docs/README.md).
+Other flags: `--limit N`, `--dataset PATH`, `--output-md PATH`, `--output-json PATH`, `--min-accuracy RATIO`, and `--require-100-injection-block`. Each run writes compact per-case results to `evals/latest_run.json`; `python -m evals.analyze_failures` groups failures by mode and points at the code to inspect. Screenshot setup is in [`docs/README.md`](docs/README.md).
