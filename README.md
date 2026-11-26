@@ -45,7 +45,7 @@ python -m venv .venv
 # macOS/Linux:  source .venv/bin/activate
 pip install -r requirements-dev.txt
 
-python -m pytest -q
+python -m pytest -v
 python -m evals.run_eval --pace --output-md evals/results.md
 streamlit run src/ui/app.py
 ```
@@ -70,7 +70,7 @@ For LLM enrichment, copy `.env.example` to `.env` and add free-tier keys. A loca
 
 ```
 src/
-  cli.py                  Triage, batch, replay, and init-db commands
+  cli.py                  Triage, batch, replay, metrics, and init-db commands
   replay.py               Filtered, ordered dataset replay
   schemas.py              Pydantic contracts: alerts, IOCs, MITRE, HITL, traces
   config.py               Provider chain, pacing, backoff, fallback, telemetry
