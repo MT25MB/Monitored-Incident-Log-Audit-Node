@@ -56,7 +56,10 @@ The CLI runs the same workflow without the dashboard:
 python -m src.cli init-db
 python -m src.cli triage --json-file alert.json --hitl approve
 python -m src.cli batch evals/datasets/full_benchmark.jsonl --limit 5 --pace --output-json batch.json
+python -m src.cli replay evals/datasets/full_benchmark.jsonl --source sysmon --adversarial-only --delay-sec 0.5
 ```
+
+`replay` streams alerts in file order, supports `--source`, `--adversarial-only`, `--limit`, and `--delay-sec`, and stores each run in the SQLite audit/trace database.
 
 `triage` also accepts inline JSON, for example `--json '{"alert_id":"ALT-9001","severity":"high","title":"Example","raw_payload":"synthetic event"}'`. Without `--hitl`, it prompts on a terminal and prints instructions elsewhere; no containment action runs without a decision.
 
@@ -66,7 +69,8 @@ For LLM enrichment, copy `.env.example` to `.env` and add free-tier keys. A loca
 
 ```
 src/
-  cli.py                  Triage, batch, and init-db commands
+  cli.py                  Triage, batch, replay, and init-db commands
+  replay.py               Filtered, ordered dataset replay
   schemas.py              Pydantic contracts: alerts, IOCs, MITRE, HITL, traces
   config.py               Provider chain, pacing, backoff, fallback, telemetry
   guardrails/sanitizer.py Redaction, injection detection, escaping, wrapping

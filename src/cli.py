@@ -24,6 +24,7 @@ import duckdb
 
 from src.agent.graph import build_graph, resume_triage, start_triage
 from src.config import Pacer, PacingConfig
+from src.replay import replay_dataset
 from src.schemas import SecurityAlert
 from src.tools.siem import init_soc_db
 
@@ -266,6 +267,73 @@ def cmd_batch(args: argparse.Namespace) -> int:
     return 0
 
 
+def cmd_replay(args: argparse.Namespace) -> int:
+    """Stream a dataset through the graph with optional filters and delay."""
+    if args.limit is not None and args.limit < 1:
+        print("ERROR: --limit must be >= 1", file=sys.stderr)
+        return 2
+    if args.delay_sec < 0:
+        print("ERROR: --delay-sec must be >= 0", file=sys.stderr)
+        return 2
+
+    def progress(index: int, row: dict[str, Any]) -> None:
+        if "error" in row:
+            print(f"[{index}] {row['case_id']}: ERROR ({row['error']})", file=sys.stderr)
+            return
+        print(
+            f"[{index}] {row['case_id']} ({row['source']}): "
+            f"{row['verdict']} · {row['tool_calls']} tools · "
+            f"{'injection flagged' if row['injection_detected'] else 'clean'}"
+        )
+
+    try:
+        summary = replay_dataset(
+            args.dataset,
+            delay_sec=args.delay_sec,
+            source=args.source,
+            adversarial_only=args.adversarial_only,
+            limit=args.limit,
+            db_path=args.db_path,
+            audit_db_path=args.audit_db,
+            on_record=progress,
+        )
+    except (OSError, ValueError) as exc:
+        print(f"ERROR: {exc}", file=sys.stderr)
+        return 2
+
+    print(f"Replayed {summary.total} alert(s).")
+    print(
+        "Verdicts: "
+        + (
+            ", ".join(f"{key}={value}" for key, value in sorted((summary.counts or {}).items()))
+            or "none"
+        )
+    )
+    print(
+        f"Adversarial cases: {summary.adversarial_count} · Errors: {summary.errors}"
+    )
+
+    if args.output_json:
+        destination = Path(args.output_json)
+        destination.parent.mkdir(parents=True, exist_ok=True)
+        destination.write_text(
+            json.dumps(
+                {
+                    "dataset": str(args.dataset),
+                    "total": summary.total,
+                    "counts": summary.counts or {},
+                    "adversarial_count": summary.adversarial_count,
+                    "errors": summary.errors,
+                    "cases": list(summary.records),
+                },
+                indent=2,
+            ),
+            encoding="utf-8",
+        )
+        print(f"Results written to {destination}")
+    return 0
+
+
 # ---------------------------------------------------------------------------
 # Parser
 # ---------------------------------------------------------------------------
@@ -321,6 +389,34 @@ def build_parser() -> argparse.ArgumentParser:
         help="Refine reports through the free-tier LLM chain",
     )
     batch.set_defaults(func=cmd_batch)
+
+    replay = subparsers.add_parser("replay", help="Stream alerts from a JSONL dataset")
+    replay.add_argument(
+        "dataset",
+        nargs="?",
+        type=Path,
+        default=DEFAULT_DATASET,
+        help="JSONL alert file (default: full benchmark)",
+    )
+    replay.add_argument(
+        "--delay-sec", type=float, default=0.0, help="Delay between alerts in seconds"
+    )
+    replay.add_argument(
+        "--source",
+        choices=("sysmon", "cloudtrail", "suricata", "auth"),
+        default=None,
+        help="Only replay alerts from this source",
+    )
+    replay.add_argument(
+        "--adversarial-only",
+        action="store_true",
+        help="Only replay cases marked as prompt injections",
+    )
+    replay.add_argument("--limit", type=int, default=None, help="Run only the first N matches")
+    replay.add_argument("--output-json", type=Path, default=None, help="Write a result summary")
+    replay.add_argument("--db-path", default=None, help="Override the DuckDB path")
+    replay.add_argument("--audit-db", default=None, help="Override the SQLite audit path")
+    replay.set_defaults(func=cmd_replay)
 
     init_db = subparsers.add_parser("init-db", help="Create and seed the local SOC database")
     init_db.add_argument("--db-path", default=None, help="Override the DuckDB path")
