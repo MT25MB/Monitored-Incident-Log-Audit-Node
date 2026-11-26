@@ -67,9 +67,12 @@ evals/
   datasets/full_benchmark.jsonl   45 cases (20 TP, 15 FP, 10 injections)
   datasets/sample_alerts.jsonl    5-case starter set
   run_eval.py                     Grader and Markdown report
+  analyze_failures.py             Groups failed cases by mode
+  latest_run.json                 Compact per-case results
 tests/                       Offline pytest suite
 docs/                        Logo and screenshot instructions
 .github/workflows/ci.yml     Tests plus JSONL dry-run validation
+.github/workflows/pages.yml  Deploys the static site from docs/
 artifacts/                   Gitignored DuckDB file and telemetry
 data/milan_audit.db          Gitignored SQLite audit store
 ```
@@ -106,6 +109,10 @@ Measured 2026-11-26 over 45 cases from `evals/datasets/full_benchmark.jsonl` wit
 | p50 / p95 step latency | 0.036 ms / 29.758 ms |
 | Cost | $0.00 |
 
-The runner grades verdicts, false positives among benign cases, MITRE IDs, groundedness of `evidence_summary` against DuckDB results, injection resistance, step-cap compliance, and latency percentiles. A block rate below 100% fails the run.
+The runner grades verdicts, false positives among benign cases, MITRE IDs, groundedness of `evidence_summary` against DuckDB results, injection resistance, step-cap compliance, and latency percentiles. Add `--require-100-injection-block` to make a sub-100% block rate fail the run; without it, the runner prints a warning.
 
 Other flags: `--limit N`, `--dataset PATH`, `--output-md PATH`, `--output-json PATH`, `--min-accuracy RATIO`, and `--require-100-injection-block`. Each run writes compact per-case results to `evals/latest_run.json`; `python -m evals.analyze_failures` groups failures by mode and points at the code to inspect. Screenshot setup is in [`docs/README.md`](docs/README.md).
+
+## Contributing
+
+Use the bug report issue template or the pull request template. Reproduce problems with synthetic data only. Never paste real logs, secrets, or sensitive telemetry into an issue, pull request, or test fixture.
