@@ -52,6 +52,7 @@ class HitlMetadata(BaseModel):
     decision: str | None = None
     reviewer: str | None = None
     actions: tuple[HitlAction, ...] = ()
+    context: tuple[dict[str, Any], ...] = ()
 
 
 class ExportBundle(BaseModel):
@@ -150,7 +151,12 @@ def build_export(
         alert_id=scrubbed_report.alert_id,
         report=scrubbed_report,
         correlation=correlation,
-        hitl=HitlMetadata(decision=decision, reviewer=reviewer, actions=actions),
+        hitl=HitlMetadata(
+            decision=decision,
+            reviewer=reviewer,
+            actions=actions,
+            context=tuple(state.get("hitl_context") or ()),
+        ),
         traces=traces,
     )
     return bundle

@@ -82,6 +82,7 @@ src/
   agent/graph.py          LangGraph machine, step cap, HITL checkpoint
   agent/correlator.py     Deterministic IOC, asset, and anomaly correlation
   agent/incident_bundler.py  Groups related alerts into incident contexts
+  agent/playbooks.py      Reviewer guidance for containment actions
   monitoring/store.py     SQLite run telemetry and append-only HITL audit log
   monitoring/metrics.py   MTTT, latency, tool, provider, and HITL aggregates
   ui/app.py               Streamlit triage and monitoring dashboard

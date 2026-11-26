@@ -26,6 +26,7 @@ if str(_ROOT) not in sys.path:
     sys.path.insert(0, str(_ROOT))
 
 from src.agent.graph import build_graph, resume_triage, start_triage  # noqa: E402
+from src.agent.playbooks import get_playbook  # noqa: E402
 from src.export import write_export  # noqa: E402
 from src.monitoring.metrics import compute_metrics  # noqa: E402
 from src.monitoring.store import get_hitl_audit, get_recent_runs  # noqa: E402
@@ -232,6 +233,20 @@ def _render_hitl_gate() -> None:
         "The graph is paused before any containment action. Review the proposals "
         "above, then choose Approve or Reject."
     )
+    report = (st.session_state.paused_state or {}).get("report")
+    if report is not None:
+        st.subheader("Playbook context")
+        for action in report.recommended_actions:
+            playbook = get_playbook(action.action)
+            with st.expander(f"{playbook.title} → {action.target}"):
+                st.caption(f"Target type: {playbook.target_type}")
+                st.write("Risks:")
+                for note in playbook.risk_notes:
+                    st.write(f"- {note}")
+                st.write("Rollback:")
+                for step in playbook.rollback_steps:
+                    st.write(f"- {step}")
+                st.caption("Human approval is required before this action runs.")
     reviewer = st.text_input("Reviewer identity", key="reviewer")
     approve_col, reject_col = st.columns(2)
 

@@ -23,6 +23,7 @@ from typing import Any, Sequence
 import duckdb
 
 from src.agent.graph import MAX_INVESTIGATION_STEPS, build_graph, resume_triage, start_triage
+from src.agent.playbooks import get_playbook
 from src.config import Pacer, PacingConfig
 from src.export import write_export
 from src.monitoring.metrics import compute_metrics, metrics_to_dict
@@ -167,7 +168,13 @@ def cmd_triage(args: argparse.Namespace) -> int:
 
     print("Containment proposed:")
     for action in actions:
-        print(f"  {action.action.value} -> {action.target} ({action.approval_status.value})")
+        playbook = get_playbook(action.action)
+        print(f"  {playbook.title} -> {action.target} ({action.approval_status.value})")
+        print(f"    Target type: {playbook.target_type}")
+        for note in playbook.risk_notes:
+            print(f"    Risk: {note}")
+        for step in playbook.rollback_steps:
+            print(f"    Rollback: {step}")
 
     mode = args.hitl or ("prompt" if sys.stdin.isatty() else "instructions")
     if mode == "instructions":

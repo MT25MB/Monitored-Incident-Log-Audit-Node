@@ -27,6 +27,7 @@ from langgraph.graph import END, StateGraph
 from pydantic import BaseModel, Field
 
 from src.agent.correlator import correlate, max_severity
+from src.agent.playbooks import playbook_for, render_playbook_brief
 from src.config import LLMError, Settings, invoke_structured
 from src.guardrails.mitre import check_mitre_mappings, get_technique, verified_mappings
 from src.guardrails.sanitizer import sanitize
@@ -97,6 +98,7 @@ class TriageState(BaseModel):
     decided_by: str | None = None
     reviewer: str | None = None
     hitl_decision: str | None = None
+    hitl_context: tuple[dict[str, Any], ...] = Field(default_factory=tuple)
     error: str | None = None
 
 
@@ -606,10 +608,30 @@ def hitl_gate(
         except Exception as exc:  # pragma: no cover - audit is best-effort
             logger.warning("could not record HITL audit for %s: %s", state.run_id, exc)
 
+    context: list[dict[str, Any]] = []
+    if report is not None:
+        for action in report.recommended_actions:
+            playbook = playbook_for(action.action)
+            if playbook is None:
+                continue
+            context.append(
+                {
+                    "action": action.action.value,
+                    "target": action.target,
+                    "title": playbook.title,
+                    "target_type": playbook.target_type,
+                    "risk_notes": list(playbook.risk_notes),
+                    "rollback_steps": list(playbook.rollback_steps),
+                    "requires_hitl": True,
+                    "brief": render_playbook_brief(action.action, action.target),
+                }
+            )
+
     return {
         "report": report,
         "hitl_decision": hitl_decision,
         "reviewer": decided_by,
+        "hitl_context": tuple(context),
         "traces": traces,
     }
 
