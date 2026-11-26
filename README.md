@@ -29,7 +29,7 @@ flowchart TD
     F -.StepTrace.-> J
 ```
 
-`src/agent/graph.py` is a LangGraph state machine with a checkpointer. `ingest_and_sanitize` redacts secrets and PII, flags injection phrases, and puts the result inside `<untrusted_log_payload>`. `plan_step` chooses the next query, and `execute_tool` runs it against DuckDB tables for SIEM logs, threat intel, and asset inventory. All three tools use bound parameters and `read_only=True`. Six tool calls is the hard ceiling. `synthesize` produces a Pydantic-validated report.
+`src/agent/graph.py` is a LangGraph state machine with a checkpointer. `ingest_and_sanitize` redacts secrets and PII, flags injection phrases, and puts the result inside `<untrusted_log_payload>`. `plan_step` chooses the next query, and `execute_tool` runs it against DuckDB tables for SIEM logs, threat intel, and asset inventory. All three tools use bound parameters and `read_only=True`. Six tool calls is the hard ceiling. `correlate()` reads the tool results and produces a factual summary: matching indicators, asset criticality, auth and process anomaly counts, and a severity floor. `synthesize` uses that summary and produces a Pydantic-validated report.
 
 The graph pauses before `hitl_gate` via `interrupt_before`. Resuming reuses the checkpointed state, so no work is repeated.
 
@@ -77,6 +77,7 @@ src/
   guardrails/sanitizer.py Redaction, injection detection, escaping, wrapping
   tools/siem.py           DuckDB seeding and three read-only tools
   agent/graph.py          LangGraph machine, step cap, HITL checkpoint
+  agent/correlator.py     Deterministic IOC, asset, and anomaly correlation
   monitoring/store.py     SQLite run telemetry and append-only HITL audit log
   monitoring/metrics.py   MTTT, latency, tool, provider, and HITL aggregates
   ui/app.py               Streamlit triage and monitoring dashboard

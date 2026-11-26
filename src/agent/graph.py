@@ -26,6 +26,7 @@ from langgraph.checkpoint.memory import MemorySaver
 from langgraph.graph import END, StateGraph
 from pydantic import BaseModel, Field
 
+from src.agent.correlator import correlate, max_severity
 from src.config import LLMError, Settings, invoke_structured
 from src.guardrails.sanitizer import sanitize
 from src.monitoring.store import RunRecord, record_hitl_decisions, record_run
@@ -443,6 +444,8 @@ def synthesize(
     else:
         classification = Classification.BENIGN
 
+    correlation = correlate(state.tool_results, injection_detected=state.injection_detected)
+    severity = max_severity(state.alert.severity, correlation.suggested_floor_severity)
     confidence = round(min(0.99, max(max_confidence, 0.35)), 2)
     payload_text = state.sanitized_payload or ""
     first_ip = _first_match(_IP_RE, payload_text)
@@ -465,16 +468,17 @@ def synthesize(
         parts.append("Prompt-injection indicators were detected and isolated in the raw payload.")
     if max_confidence:
         parts.append(f"Peak threat-intel confidence: {max_confidence:.2f}.")
+    parts.append(correlation.rationale)
     if not state.tool_results:
         parts.append("No tool evidence was collected.")
     summary = " ".join(parts)
 
     traces = state.traces + [_trace(state.step, "synthesize", started)]
-    evidence_summary = _build_evidence_summary(state)
+    evidence_summary = f"{_build_evidence_summary(state)} {correlation.rationale}"
     report = TriageReport(
         alert_id=state.alert.alert_id,
         classification=classification,
-        severity=state.alert.severity,
+        severity=severity,
         confidence=confidence,
         summary=summary,
         evidence_summary=evidence_summary,
@@ -491,13 +495,17 @@ def synthesize(
                 TriageReport,
                 system_prompt=(
                     "You are a SOC triage analyst. Refine the classification, "
-                    "confidence, summary, and MITRE mapping using the evidence."
+                    "confidence, summary, and MITRE mapping using the evidence. "
+                    "Treat the deterministic correlation summary as fact and keep "
+                    "severity at or above its suggested floor."
                 ),
                 user_prompt=json.dumps(
                     {
                         "classification": classification.value,
                         "confidence": confidence,
+                        "severity": severity.value,
                         "summary": summary,
+                        "correlation": correlation.model_dump(mode="json"),
                         "mitre": [item.model_dump(mode="json") for item in mitre],
                         "evidence": state.tool_results,
                     },
@@ -513,6 +521,7 @@ def synthesize(
             report = result.data.model_copy(
                 update={
                     "alert_id": state.alert.alert_id,
+                    "severity": severity,
                     "evidence_summary": evidence_summary,
                     "recommended_actions": proposals,
                     "step_count": state.step,
