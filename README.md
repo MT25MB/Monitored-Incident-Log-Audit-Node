@@ -86,6 +86,7 @@ evals/
   generate_scenarios.py           Deterministic synthetic case generator
   run_eval.py                     Grader and Markdown report
   analyze_failures.py             Groups failed cases by mode
+  compare_runs.py                 Diffs two evaluation artifacts
   latest_run.json                 Compact per-case results
 tests/                       Offline pytest suite
 docs/                        Logo and screenshot instructions
@@ -131,7 +132,7 @@ The runner grades verdicts, false positives among benign cases, MITRE IDs, groun
 
 Other flags: `--limit N`, `--dataset PATH`, `--output-md PATH`, `--output-json PATH`, `--min-accuracy RATIO`, and `--require-100-injection-block`. Each run writes compact per-case results to `evals/latest_run.json`; `python -m evals.analyze_failures` groups failures by mode and points at the code to inspect.
 
-`python -m evals.generate_scenarios --count 12` writes more synthetic cases with unique hosts, indicators, and hashes. `src.tools.siem.seed_generated_scenarios()` inserts their matching logs, intel, and assets into DuckDB so the agent can investigate them offline. Screenshot setup is in [`docs/README.md`](docs/README.md).
+`python -m evals.generate_scenarios --count 12` writes more synthetic cases with unique hosts, indicators, and hashes. `src.tools.siem.seed_generated_scenarios()` inserts their matching logs, intel, and assets into DuckDB so the agent can investigate them offline. Use `python -m evals.compare_runs baseline.json candidate.json` to diff two artifacts. Screenshot setup is in [`docs/README.md`](docs/README.md).
 
 ## Contributing
 
