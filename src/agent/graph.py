@@ -17,6 +17,7 @@ import logging
 import re
 import time
 import uuid
+from dataclasses import asdict
 from functools import partial
 from pathlib import Path
 from typing import Any, Callable
@@ -77,6 +78,7 @@ class TriageState(BaseModel):
     sanitized_payload: str | None = None
     trusted_system_instruction: str = ""
     injection_detected: bool = False
+    injection_flags: list[dict[str, str]] = Field(default_factory=list)
     redaction_count: int = 0
 
     step: int = 0
@@ -228,6 +230,7 @@ def ingest_and_sanitize(state: TriageState, *, db_path: str | None = None) -> di
         "sanitized_payload": sanitized.text,
         "trusted_system_instruction": sanitized.trusted_system_instruction(),
         "injection_detected": sanitized.injection_detected,
+        "injection_flags": [asdict(finding) for finding in sanitized.injections],
         "redaction_count": sanitized.redaction_count,
         "traces": state.traces + [_trace(0, "ingest_and_sanitize", started)],
     }
