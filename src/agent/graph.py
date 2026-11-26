@@ -82,6 +82,7 @@ class TriageState(BaseModel):
     injection_detected: bool = False
     injection_flags: list[dict[str, str]] = Field(default_factory=list)
     redaction_count: int = 0
+    correlation_summary: dict[str, Any] | None = None
 
     step: int = 0
     plan: str = ""
@@ -93,6 +94,7 @@ class TriageState(BaseModel):
     report: TriageReport | None = None
     human_decision: str | None = None
     decided_by: str | None = None
+    reviewer: str | None = None
     hitl_decision: str | None = None
     error: str | None = None
 
@@ -539,7 +541,11 @@ def synthesize(
             report = report.model_copy(update={"traces": traces})
 
     _persist_run(state, report, status="paused", db_path=audit_db_path)
-    return {"report": report, "traces": traces}
+    return {
+        "report": report,
+        "traces": traces,
+        "correlation_summary": correlation.model_dump(mode="json"),
+    }
 
 
 class MemorySink:
@@ -608,6 +614,7 @@ def hitl_gate(
     return {
         "report": report,
         "hitl_decision": hitl_decision,
+        "reviewer": decided_by,
         "traces": traces,
     }
 

@@ -24,6 +24,7 @@ import duckdb
 
 from src.agent.graph import MAX_INVESTIGATION_STEPS, build_graph, resume_triage, start_triage
 from src.config import Pacer, PacingConfig
+from src.export import write_export
 from src.monitoring.metrics import compute_metrics, metrics_to_dict
 from src.replay import replay_dataset
 from src.schemas import SecurityAlert
@@ -119,6 +120,19 @@ def cmd_init_db(args: argparse.Namespace) -> int:
     return 0
 
 
+def _maybe_export(state: dict[str, Any], args: argparse.Namespace) -> None:
+    """Write a JSON export when the caller asked for one."""
+    export_dir = getattr(args, "export_dir", None)
+    if not export_dir:
+        return
+    try:
+        path = write_export(state, output_dir=export_dir)
+    except (OSError, ValueError) as exc:
+        print(f"ERROR: export failed: {exc}", file=sys.stderr)
+        return
+    print(f"Export written to {path}")
+
+
 def cmd_triage(args: argparse.Namespace) -> int:
     """Run one alert and handle any containment proposal."""
     if not args.json_file and not args.json:
@@ -148,6 +162,7 @@ def cmd_triage(args: argparse.Namespace) -> int:
     actions = list(report.recommended_actions) if report else []
     if not actions:
         print("Containment: none proposed")
+        _maybe_export(paused, args)
         return 0
 
     print("Containment proposed:")
@@ -160,6 +175,7 @@ def cmd_triage(args: argparse.Namespace) -> int:
             "No action executed. Re-run with --hitl approve or --hitl reject "
             "to record a decision, or use the Streamlit HITL tab for interactive review."
         )
+        _maybe_export(paused, args)
         return 0
 
     if mode == "prompt":
@@ -174,6 +190,7 @@ def cmd_triage(args: argparse.Namespace) -> int:
     print(f"HITL decision: {final.get('hitl_decision')}")
     print("Executable actions after review: "
           f"{sum(1 for action in final['report'].recommended_actions if action.is_executable)}")
+    _maybe_export(final, args)
     return 0
 
 
@@ -411,6 +428,11 @@ def build_parser() -> argparse.ArgumentParser:
     triage.add_argument("--thread-id", default=None, help="LangGraph thread id")
     triage.add_argument("--db-path", default=None, help="Override the DuckDB path")
     triage.add_argument("--audit-db", default=None, help="Override the SQLite audit path")
+    triage.add_argument(
+        "--export-dir",
+        default=None,
+        help="Write a validated JSON export of the run to this directory",
+    )
     triage.add_argument(
         "--enrich-with-llm",
         action="store_true",

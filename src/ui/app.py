@@ -26,6 +26,7 @@ if str(_ROOT) not in sys.path:
     sys.path.insert(0, str(_ROOT))
 
 from src.agent.graph import build_graph, resume_triage, start_triage  # noqa: E402
+from src.export import write_export  # noqa: E402
 from src.monitoring.metrics import compute_metrics  # noqa: E402
 from src.monitoring.store import get_hitl_audit, get_recent_runs  # noqa: E402
 from src.schemas import SecurityAlert, Severity  # noqa: E402
@@ -334,6 +335,13 @@ def main() -> None:
             _render_security_flags(state)
             _render_traces(state)
             _render_report(state)
+
+            if st.button("Export run JSON"):
+                try:
+                    path = write_export(state)
+                    st.success(f"Exported to {path}")
+                except Exception as exc:
+                    st.error(f"Export failed: {exc}")
 
             if st.session_state.final_state is None:
                 _render_hitl_gate()

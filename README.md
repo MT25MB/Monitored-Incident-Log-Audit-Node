@@ -60,7 +60,7 @@ python -m src.cli replay evals/datasets/full_benchmark.jsonl --source sysmon --a
 python -m src.cli metrics
 ```
 
-`replay` streams alerts in file order, supports `--source`, `--adversarial-only`, `--limit`, and `--delay-sec`, and stores each run in the SQLite audit/trace database.
+`replay` streams alerts in file order, supports `--source`, `--adversarial-only`, `--limit`, and `--delay-sec`, and stores each run in the SQLite audit/trace database. Add `--export-dir PATH` to `triage` to write a validated JSON bundle with the report, correlation summary, HITL metadata, and step traces to `data/exports/` or a folder of your choice. The Streamlit dashboard has the same export button.
 
 `triage` also accepts inline JSON, for example `--json '{"alert_id":"ALT-9001","severity":"high","title":"Example","raw_payload":"synthetic event"}'`. Without `--hitl`, it prompts on a terminal and prints instructions elsewhere; no containment action runs without a decision.
 
@@ -72,6 +72,7 @@ For LLM enrichment, copy `.env.example` to `.env` and add free-tier keys. A loca
 src/
   cli.py                  Triage, batch, replay, metrics, and init-db commands
   replay.py               Filtered, ordered dataset replay
+  export.py               Schema-validated, secret-safe run exports
   schemas.py              Pydantic contracts: alerts, IOCs, MITRE, HITL, traces
   config.py               Provider chain, pacing, backoff, fallback, telemetry
   guardrails/sanitizer.py Redaction, injection detection, escaping, wrapping
