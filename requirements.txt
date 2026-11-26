@@ -1,0 +1,15 @@
+# MILAN runtime dependencies. All packages are free/open-source.
+# LLM providers are used exclusively through free-tier endpoints.
+duckdb>=1.0,<2
+langgraph>=0.2,<2
+langchain-core>=0.3,<2
+pydantic>=2.7,<3
+pydantic-settings>=2.3,<3
+python-dotenv>=1.0,<2
+streamlit>=1.36,<2
+google-genai>=0.1
+groq>=0.11,<1
+openai>=1.40,<2
+httpx>=0.27,<1
+tenacity>=8.5,<9
+tiktoken>=0.7,<1
