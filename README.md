@@ -57,6 +57,7 @@ python -m src.cli init-db
 python -m src.cli triage --json-file alert.json --hitl approve
 python -m src.cli batch evals/datasets/full_benchmark.jsonl --limit 5 --pace --output-json batch.json
 python -m src.cli replay evals/datasets/full_benchmark.jsonl --source sysmon --adversarial-only --delay-sec 0.5
+python -m src.cli metrics
 ```
 
 `replay` streams alerts in file order, supports `--source`, `--adversarial-only`, `--limit`, and `--delay-sec`, and stores each run in the SQLite audit/trace database.
@@ -77,6 +78,7 @@ src/
   tools/siem.py           DuckDB seeding and three read-only tools
   agent/graph.py          LangGraph machine, step cap, HITL checkpoint
   monitoring/store.py     SQLite run telemetry and append-only HITL audit log
+  monitoring/metrics.py   MTTT, latency, tool, provider, and HITL aggregates
   ui/app.py               Streamlit triage and monitoring dashboard
 evals/
   datasets/full_benchmark.jsonl   45 cases (20 TP, 15 FP, 10 injections)

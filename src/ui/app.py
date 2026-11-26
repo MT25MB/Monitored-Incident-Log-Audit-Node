@@ -26,7 +26,8 @@ if str(_ROOT) not in sys.path:
     sys.path.insert(0, str(_ROOT))
 
 from src.agent.graph import build_graph, resume_triage, start_triage  # noqa: E402
-from src.monitoring.store import get_hitl_audit, get_recent_runs, get_run_metrics  # noqa: E402
+from src.monitoring.metrics import compute_metrics  # noqa: E402
+from src.monitoring.store import get_hitl_audit, get_recent_runs  # noqa: E402
 from src.schemas import SecurityAlert, Severity  # noqa: E402
 
 __all__ = ["main"]
@@ -256,15 +257,34 @@ def _render_hitl_gate() -> None:
 
 def _render_monitoring() -> None:
     """Show aggregate monitoring metrics and the immutable HITL audit log."""
-    metrics = get_run_metrics()
+    metrics = compute_metrics()
     st.subheader("Operational metrics")
-    col1, col2, col3, col4 = st.columns(4)
-    col1.metric("Mean Time to Triage", f"{metrics.mttt_ms:.1f} ms")
-    col2.metric("p95 latency", f"{metrics.p95_latency_ms:.1f} ms")
-    col3.metric("Fallback rate", f"{metrics.fallback_rate:.0%}")
-    col4.metric("Prompt injections", metrics.injection_detections)
+    first = st.columns(4)
+    first[0].metric("Mean Time to Triage", f"{metrics.mttt_ms:.1f} ms")
+    first[1].metric("p50 latency", f"{metrics.p50_latency_ms:.3f} ms")
+    first[2].metric("p95 latency", f"{metrics.p95_latency_ms:.3f} ms")
+    first[3].metric("Fallback rate", f"{metrics.fallback_rate:.0%}")
+
+    second = st.columns(4)
+    second[0].metric("Tool calls", metrics.tool_calls_total)
+    second[1].metric("Avg steps / alert", f"{metrics.avg_steps_per_alert:.2f}")
+    second[2].metric("Step-cap violations", metrics.step_cap_violations)
+    second[3].metric("Estimated cost", f"${metrics.estimated_cost_usd:.2f}")
+
+    providers = (
+        ", ".join(f"{name}: {count}" for name, count in metrics.provider_usage.items())
+        or "none"
+    )
     st.caption(
-        f"{metrics.total_runs} stored runs · {metrics.completed_runs} completed"
+        f"{metrics.total_runs} stored runs · {metrics.completed_runs} completed · "
+        f"providers: {providers}"
+    )
+    st.caption(
+        f"Prompt-injection flags: {metrics.injection_flagged_runs} "
+        f"({metrics.injection_flag_rate:.0%}) · "
+        f"HITL approved: {metrics.hitl_approved} · "
+        f"rejected: {metrics.hitl_rejected} · "
+        f"not required: {metrics.hitl_not_required}"
     )
 
     st.subheader("Recent investigations")

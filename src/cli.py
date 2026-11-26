@@ -22,8 +22,9 @@ from typing import Any, Sequence
 
 import duckdb
 
-from src.agent.graph import build_graph, resume_triage, start_triage
+from src.agent.graph import MAX_INVESTIGATION_STEPS, build_graph, resume_triage, start_triage
 from src.config import Pacer, PacingConfig
+from src.monitoring.metrics import compute_metrics, metrics_to_dict
 from src.replay import replay_dataset
 from src.schemas import SecurityAlert
 from src.tools.siem import init_soc_db
@@ -334,6 +335,55 @@ def cmd_replay(args: argparse.Namespace) -> int:
     return 0
 
 
+def cmd_metrics(args: argparse.Namespace) -> int:
+    """Print aggregate metrics from the SQLite audit store."""
+    summary = compute_metrics(db_path=args.audit_db)
+    providers = (
+        ", ".join(f"{name}={count}" for name, count in summary.provider_usage.items())
+        or "none"
+    )
+    print("MILAN monitoring summary")
+    print(
+        f"Runs: {summary.total_runs} "
+        f"(completed {summary.completed_runs}, paused {summary.paused_runs})"
+    )
+    print(
+        f"MTTT: {summary.mttt_ms:.1f} ms · "
+        f"p50: {summary.p50_latency_ms:.3f} ms · "
+        f"p95: {summary.p95_latency_ms:.3f} ms"
+    )
+    print(
+        f"Tool calls: {summary.tool_calls_total} · "
+        f"Avg steps/alert: {summary.avg_steps_per_alert:.2f} · "
+        f"Cap <={MAX_INVESTIGATION_STEPS}: {summary.step_cap_compliant} ok, "
+        f"{summary.step_cap_violations} violations"
+    )
+    print(
+        f"Providers: {providers} · "
+        f"Fallback: {summary.fallback_events} event(s) "
+        f"({summary.fallback_rate:.0%}) · "
+        f"Cost: ${summary.estimated_cost_usd:.2f}"
+    )
+    print(
+        f"Injection flagged: {summary.injection_flagged_runs} "
+        f"({summary.injection_flag_rate:.0%})"
+    )
+    print(
+        f"HITL: approved={summary.hitl_approved}, "
+        f"rejected={summary.hitl_rejected}, "
+        f"not_required={summary.hitl_not_required}"
+    )
+
+    if args.output_json:
+        destination = Path(args.output_json)
+        destination.parent.mkdir(parents=True, exist_ok=True)
+        destination.write_text(
+            json.dumps(metrics_to_dict(summary), indent=2), encoding="utf-8"
+        )
+        print(f"Metrics written to {destination}")
+    return 0
+
+
 # ---------------------------------------------------------------------------
 # Parser
 # ---------------------------------------------------------------------------
@@ -417,6 +467,11 @@ def build_parser() -> argparse.ArgumentParser:
     replay.add_argument("--db-path", default=None, help="Override the DuckDB path")
     replay.add_argument("--audit-db", default=None, help="Override the SQLite audit path")
     replay.set_defaults(func=cmd_replay)
+
+    metrics = subparsers.add_parser("metrics", help="Summarize the SQLite audit store")
+    metrics.add_argument("--audit-db", default=None, help="Override the SQLite audit path")
+    metrics.add_argument("--output-json", type=Path, default=None, help="Write metrics as JSON")
+    metrics.set_defaults(func=cmd_metrics)
 
     init_db = subparsers.add_parser("init-db", help="Create and seed the local SOC database")
     init_db.add_argument("--db-path", default=None, help="Override the DuckDB path")
