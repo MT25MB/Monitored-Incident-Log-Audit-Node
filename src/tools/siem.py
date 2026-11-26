@@ -17,7 +17,7 @@ from contextlib import contextmanager
 from dataclasses import dataclass
 from datetime import datetime, timedelta
 from pathlib import Path
-from typing import Any, Iterator, Sequence
+from typing import Any, Iterable, Iterator, Mapping, Sequence
 
 import duckdb
 
@@ -30,6 +30,7 @@ __all__ = [
     "SiemQueryResult",
     "check_threat_intel",
     "init_soc_db",
+    "seed_generated_scenarios",
     "lookup_asset_inventory",
     "query_siem_logs",
 ]
@@ -526,6 +527,95 @@ def init_soc_db(db_path: str | Path | None = None) -> Path:
         connection.close()
 
     return path
+
+
+def seed_generated_scenarios(
+    scenarios: Iterable[Mapping[str, Any]],
+    *,
+    db_path: str | Path | None = None,
+) -> int:
+    """Insert generated scenarios into the SOC database without duplicates.
+
+    Each scenario must follow the ``EvalCase`` shape emitted by
+    ``evals/generate_scenarios.py``, including its ``seed`` block. Inserts use
+    ``INSERT OR IGNORE``, so calling this twice leaves the database unchanged.
+
+    Returns the number of scenarios processed.
+    """
+    path = init_soc_db(db_path)
+    logs: list[tuple[Any, ...]] = []
+    intel: list[tuple[Any, ...]] = []
+    assets: list[tuple[Any, ...]] = []
+    processed = 0
+
+    for scenario in scenarios:
+        alert = scenario.get("alert") or {}
+        seed = scenario.get("seed") or {}
+        alert_id = alert.get("alert_id")
+        hostname = seed.get("hostname") or alert.get("hostname")
+        indicator = seed.get("indicator")
+        if not alert_id or not hostname or not indicator:
+            continue
+
+        processed += 1
+        event_time = datetime(2026, 11, 26, 7, 0) + timedelta(minutes=processed)
+        source = str(seed.get("source") or alert.get("source") or "generated")
+        severity = str(seed.get("severity") or alert.get("severity") or "medium")
+        technique = seed.get("technique")
+        confidence = float(seed.get("confidence") or 0.0)
+        sequence = int(str(alert_id).split("-")[-1]) - 5001
+        internal_ip = f"10.40.{max(0, sequence) // 200}.{(max(0, sequence) % 200) + 10}"
+
+        logs.append(
+            (
+                f"LOG-{alert_id}",
+                alert_id,
+                event_time,
+                source,
+                severity,
+                hostname,
+                str(seed.get("source_ip") or alert.get("source_ip") or ""),
+                internal_ip,
+                str(alert.get("raw_payload") or ""),
+                technique,
+                ["generated", source],
+            )
+        )
+        intel.append(
+            (
+                indicator,
+                str(seed.get("indicator_type") or "ip"),
+                str(seed.get("threat_type") or "Generated indicator"),
+                confidence,
+                technique,
+                event_time,
+                event_time,
+                "generated-intel" if confidence >= 0.3 else "asset-registry",
+                "Synthetic scenario indicator",
+            )
+        )
+        assets.append(
+            (
+                hostname,
+                internal_ip,
+                str(seed.get("owner") or "generated user"),
+                str(seed.get("department") or "IT"),
+                str(seed.get("criticality") or "medium"),
+                "AWS Linux" if source == "cloudtrail" else "Windows 11 23H2",
+                "2026-10",
+                event_time,
+                ["generated", str(seed.get("department") or "it").lower()],
+            )
+        )
+
+    connection = duckdb.connect(str(path))
+    try:
+        connection.executemany("INSERT OR IGNORE INTO siem_logs VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)", logs)
+        connection.executemany("INSERT OR IGNORE INTO threat_intel VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)", intel)
+        connection.executemany("INSERT OR IGNORE INTO asset_inventory VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)", assets)
+    finally:
+        connection.close()
+    return processed
 
 
 def _ensure_db(db_path: str | Path | None) -> Path:
