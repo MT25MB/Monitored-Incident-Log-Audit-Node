@@ -180,7 +180,7 @@ Everything is square. No radius appears in the build, so corners are unrounded t
 
 ### Do:
 - **Do** centre content in the 1120px container using `min(calc(100% - 48px), 1120px)`, tightening to a 16px inset at ≤560px.
-- **Do** build structure from 1px `line` rules and the paper/white step, keeping both accent colours on signal only.
+- **Do** build structure from 1px `line` rules and the paper/white step, keeping both signal tokens (`accent`, `good`) on signal only.
 - **Do** set display headings in Archivo with negative tracking and balanced lines, prose in the system sans, and identifiers/data in mono.
 - **Do** colour only the result cells of the benchmark table green, and keep every other table's final cell ink.
 - **Do** keep surfaces flat and square, and render numeric values in tabular figures.
