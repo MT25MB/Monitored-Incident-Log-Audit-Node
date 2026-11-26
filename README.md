@@ -1,6 +1,6 @@
 [![CI](https://github.com/MT25MB/Monitored-Incident-Log-Audit-Node/actions/workflows/ci.yml/badge.svg)](https://github.com/MT25MB/Monitored-Incident-Log-Audit-Node/actions/workflows/ci.yml)
 
-# MILAN — Monitored Incident & Log Audit Node
+# MILAN: Monitored Incident & Log Audit Node
 
 <img src="docs/logo.png" alt="MILAN logo" width="64">
 
