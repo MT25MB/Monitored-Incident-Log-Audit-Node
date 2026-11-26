@@ -1,4 +1,4 @@
-"""Offline benchmark runner for MILAN.
+"""Benchmark runner for MILAN.
 
 Loads JSONL alert cases, runs each through the compiled LangGraph pipeline up
 to the HITL gate, resumes with a safe "rejected" decision, and grades:
@@ -10,14 +10,16 @@ to the HITL gate, resumes with a safe "rejected" decision, and grades:
 * groundedness of ``TriageReport.evidence_summary`` against DuckDB tool results
 * p50 / p95 step latency
 
-Groundedness is judged by the free-tier provider chain via
-:func:`src.config.invoke_structured_with_fallback`. When no API key is
-configured, a deterministic offline checker is used instead so the benchmark
-still runs at $0.
+Live LLM mode is the default: groundedness and optional report refinement use
+the free-tier provider chain via :func:`src.config.invoke_structured_with_fallback`.
+Pass ``--offline-mock`` for a non-LLM dry run that uses deterministic rules and
+local fixtures only. Both modes still exercise sanitization, DuckDB lookups,
+schema validation, grading, and Markdown output.
 
 CLI::
 
-    python evals/run_eval.py --limit 5 --pace --output-md evals/results.md
+    python -m evals.run_eval --limit 5 --pace --output-md evals/results.md
+    python -m evals.run_eval --offline-mock --output-md evals/dry_run.md
 """
 
 from __future__ import annotations
@@ -150,6 +152,7 @@ class BenchmarkSummary(BaseModel):
     p50_latency_ms: float = 0.0
     p95_latency_ms: float = 0.0
     estimated_cost_usd: float = 0.0
+    offline_mock: bool = False
 
 
 class RunArtifact(BaseModel):
@@ -247,8 +250,16 @@ def judge_groundedness(
     *,
     settings: Settings | None = None,
     step: int = 0,
+    offline: bool = False,
 ) -> JudgeScore:
-    """Grade whether ``evidence_summary`` is grounded in real tool results."""
+    """Grade whether ``evidence_summary`` is grounded in real tool results.
+
+    With ``offline=True`` the deterministic checker is used directly and no
+    provider call is attempted.
+    """
+    if offline:
+        return _offline_groundedness(report.evidence_summary, tool_results)
+
     judge_payload = json.dumps(
         {
             "evidence_summary": report.evidence_summary,
@@ -338,10 +349,13 @@ def run_benchmark(
     cases: Sequence[EvalCase],
     *,
     db_path: str | None = None,
-    enrich_with_llm: bool = False,
+    enrich_with_llm: bool = True,
     settings: Settings | None = None,
+    offline_mock: bool = False,
 ) -> BenchmarkSummary:
     """Execute and grade all cases through the guardrailed graph."""
+    if offline_mock:
+        enrich_with_llm = False
     graph = build_graph(db_path=db_path, enrich_with_llm=enrich_with_llm, settings=settings)
     results: list[CaseResult] = []
     all_latencies: list[float] = []
@@ -361,6 +375,7 @@ def run_benchmark(
                 after.get("tool_results", ()),
                 settings=settings,
                 step=int(before.get("step") or 0),
+                offline=offline_mock,
             )
             result = grade_case(
                 case,
@@ -416,6 +431,7 @@ def run_benchmark(
         p50_latency_ms=round(_percentile(all_latencies, 0.50), 3),
         p95_latency_ms=round(_percentile(all_latencies, 0.95), 3),
         estimated_cost_usd=round(total_cost, 6),
+        offline_mock=offline_mock,
     )
 
 
@@ -430,6 +446,13 @@ def render_markdown(summary: BenchmarkSummary) -> str:
         "# MILAN Evaluation Benchmark",
         "",
         f"Generated: {datetime.now(timezone.utc).isoformat(timespec='seconds')}",
+        "",
+        (
+            "> Offline mock dry run. No LLM APIs were called; verdicts come from "
+            "deterministic rules and local fixtures."
+            if summary.offline_mock
+            else "Live LLM mode. The configured provider chain is used when keys are available."
+        ),
         "",
         "## Per-case results",
         "",
@@ -566,9 +589,14 @@ def main(argv: Sequence[str] | None = None) -> int:
     )
     parser.add_argument("--db-path", type=str, default=None, help="Override the DuckDB path")
     parser.add_argument(
+        "--offline-mock",
+        action="store_true",
+        help="Run a non-LLM dry run using deterministic rules and local fixtures",
+    )
+    parser.add_argument(
         "--enrich-with-llm",
         action="store_true",
-        help="Use free-tier LLM to refine reports (requires API keys and network)",
+        help="Kept for compatibility; live LLM mode is the default without --offline-mock",
     )
     args = parser.parse_args(argv)
 
@@ -586,8 +614,9 @@ def main(argv: Sequence[str] | None = None) -> int:
     summary = run_benchmark(
         cases,
         db_path=args.db_path,
-        enrich_with_llm=args.enrich_with_llm,
+        enrich_with_llm=not args.offline_mock,
         settings=settings,
+        offline_mock=args.offline_mock,
     )
     report = render_markdown(summary)
     args.output_md.parent.mkdir(parents=True, exist_ok=True)

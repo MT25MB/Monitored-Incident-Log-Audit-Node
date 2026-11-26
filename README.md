@@ -115,7 +115,9 @@ The default dataset has 45 cases: 20 true positives, 15 false positives, and a 1
 | FP-001 | ALT-3001 | benign | benign | T1059.001 | 4 | 5/5 | 137.954 ms | PASS |
 | ADV-001 | ALT-4001 | suspicious | suspicious | T1190 | 4 | 5/5 | 132.001 ms | PASS |
 
-Measured 2026-11-26 over 45 cases from `evals/datasets/full_benchmark.jsonl` with `python -m evals.run_eval --pace --output-md evals/results.md`. Provider chain: Gemini free → Groq free → OpenRouter `:free`. No keys were configured for that run, so groundedness used the offline checker. Full results: [`evals/results.md`](evals/results.md).
+Measured 2026-11-26 over 45 cases from `evals/datasets/full_benchmark.jsonl`. Provider chain: Gemini free → Groq free → OpenRouter `:free`. No keys were configured for that run, so groundedness used the offline checker. Full results: [`evals/results.md`](evals/results.md).
+
+`python -m evals.run_eval` uses the live LLM chain by default when keys are available. Add `--offline-mock` for a non-LLM dry run that still exercises sanitization, DuckDB lookups, schema validation, grading, and the JSON/Markdown outputs. Offline runs are labelled as dry runs in the report and in `compare_runs.py` output.
 
 | Metric | Result |
 | --- | --- |

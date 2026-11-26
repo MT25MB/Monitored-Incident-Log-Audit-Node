@@ -58,6 +58,8 @@ class Comparison:
     candidate_label: str
     baseline_cases: int
     candidate_cases: int
+    baseline_offline_mock: bool
+    candidate_offline_mock: bool
     metrics: tuple[MetricDelta, ...]
     flips: tuple[Flip, ...]
     only_baseline: tuple[str, ...]
@@ -163,6 +165,8 @@ def compare_artifacts(
         candidate_label=candidate_label,
         baseline_cases=len(baseline.cases),
         candidate_cases=len(candidate.cases),
+        baseline_offline_mock=bool(base_summary.get("offline_mock", False)),
+        candidate_offline_mock=bool(cand_summary.get("offline_mock", False)),
         metrics=tuple(metrics),
         flips=tuple(sorted(flips, key=lambda flip: (flip.direction, flip.case_id))),
         only_baseline=tuple(sorted(base_cases.keys() - cand_cases.keys())),
@@ -170,17 +174,35 @@ def compare_artifacts(
     )
 
 
+def _mode_label(offline_mock: bool) -> str:
+    return "offline mock dry run" if offline_mock else "live LLM mode"
+
+
 def render_markdown(comparison: Comparison) -> str:
     """Render the comparison as a concise Markdown report."""
     lines = [
         "# MILAN run comparison",
         "",
-        f"Baseline: `{comparison.baseline_label}` ({comparison.baseline_cases} cases)",
-        f"Candidate: `{comparison.candidate_label}` ({comparison.candidate_cases} cases)",
+        f"Baseline: `{comparison.baseline_label}` "
+        f"({comparison.baseline_cases} cases, {_mode_label(comparison.baseline_offline_mock)})",
+        f"Candidate: `{comparison.candidate_label}` "
+        f"({comparison.candidate_cases} cases, {_mode_label(comparison.candidate_offline_mock)})",
         "",
-        "| Metric | Baseline | Candidate | Delta |",
-        "| --- | ---: | ---: | ---: |",
     ]
+    if comparison.baseline_offline_mock != comparison.candidate_offline_mock:
+        lines.extend(
+            [
+                "> Warning: one run is an offline mock dry run and the other is "
+                "live LLM mode. Treat the delta as directional only.",
+                "",
+            ]
+        )
+    lines.extend(
+        [
+            "| Metric | Baseline | Candidate | Delta |",
+            "| --- | ---: | ---: | ---: |",
+        ]
+    )
     for metric in comparison.metrics:
         lines.append(
             f"| {metric.name} | {metric.baseline} | {metric.candidate} | {metric.delta} |"

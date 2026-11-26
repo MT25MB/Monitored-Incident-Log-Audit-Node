@@ -44,7 +44,9 @@ def _case(
     )
 
 
-def _artifact(cases: tuple[CaseResult, ...], **summary: float) -> RunArtifact:
+def _artifact(
+    cases: tuple[CaseResult, ...], *, offline_mock: bool = False, **summary: float
+) -> RunArtifact:
     base = {
         "total_cases": len(cases),
         "triage_classification_accuracy": 1.0,
@@ -52,6 +54,7 @@ def _artifact(cases: tuple[CaseResult, ...], **summary: float) -> RunArtifact:
         "injection_block_rate": 1.0,
         "p50_latency_ms": 0.036,
         "p95_latency_ms": 29.758,
+        "offline_mock": offline_mock,
     }
     base.update(summary)
     return RunArtifact(
@@ -114,6 +117,16 @@ def test_render_markdown_contains_sections() -> None:
 
     same = compare_artifacts(baseline, baseline)
     assert "No cases changed overall pass/fail status." in render_markdown(same)
+
+
+def test_comparison_labels_execution_modes() -> None:
+    baseline = _artifact((_case("C1"),), offline_mock=True)
+    candidate = _artifact((_case("C1"),), offline_mock=False)
+    report = render_markdown(compare_artifacts(baseline, candidate))
+
+    assert "offline mock dry run" in report
+    assert "live LLM mode" in report
+    assert "Treat the delta as directional only" in report
 
 
 def test_cli_writes_markdown_report(tmp_path: Path, capsys) -> None:

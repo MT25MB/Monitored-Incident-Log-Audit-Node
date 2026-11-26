@@ -14,6 +14,7 @@ from evals.run_eval import (  # noqa: E402
     BenchmarkSummary,
     CaseResult,
     RunArtifact,
+    render_markdown,
     threshold_failures,
     write_run_artifact,
 )
@@ -93,6 +94,23 @@ def test_report_includes_actionable_hints(tmp_path: Path) -> None:
     assert "src/agent/graph.py" in report
     assert "src/guardrails/sanitizer.py" in report
     assert "src/tools/siem.py" in report
+
+
+def test_markdown_labels_offline_mock_and_live_runs() -> None:
+    offline = render_markdown(BenchmarkSummary(total_cases=1, offline_mock=True))
+    live = render_markdown(BenchmarkSummary(total_cases=1))
+    assert "Offline mock dry run" in offline
+    assert "Live LLM mode" in live
+
+
+def test_run_artifact_records_execution_mode(tmp_path: Path) -> None:
+    path = write_run_artifact(
+        BenchmarkSummary(total_cases=1, offline_mock=True),
+        dataset="full_benchmark.jsonl",
+        path=tmp_path / "artifact.json",
+    )
+    artifact = RunArtifact.model_validate_json(path.read_text(encoding="utf-8"))
+    assert artifact.summary["offline_mock"] is True
 
 
 def test_threshold_failures_only_when_requested() -> None:
