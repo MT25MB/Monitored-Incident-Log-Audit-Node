@@ -22,6 +22,7 @@
         <a href="#overview">Overview</a>
         <a href="#how-it-works">How it works</a>
         <a href="#evaluation">Evaluation</a>
+        <a href="#examples">Examples</a>
         <a href="#quickstart">Quickstart</a>
       </nav>
     </div>
@@ -128,8 +129,37 @@
       <p class="note">Provider chain: Gemini free → Groq free → OpenRouter <code>:free</code>. No API keys were configured for this run, so the groundedness judge used its offline checker. Full per-case results: <a href="https://github.com/MT25MB/Monitored-Incident-Log-Audit-Node/blob/main/evals/results.md">evals/results.md</a>.</p>
     </section>
 
+    <section class="wrap section" id="examples">
+      <p class="section-index">04 / Examples</p>
+      <h2>Three runs, start to finish</h2>
+      <ol class="steps">
+        <li>
+          <span class="step-num">01</span>
+          <div>
+            <h3>SSH brute force, then a login</h3>
+            <p>ALT-2004 arrives from the auth log. The parser picks 198.51.100.14 out of the message. The SIEM shows repeated failed logins followed by success on SRV-LNX-204, and threat intel rates that address at 0.88 confidence. The asset is high criticality, so the severity floor rises to critical and the verdict is malicious. The run proposes blocking the address and isolating the host, then pauses before the HITL gate. Both actions stay pending until a person approves them.</p>
+          </div>
+        </li>
+        <li>
+          <span class="step-num">02</span>
+          <div>
+            <h3>Scanner inside a booked window</h3>
+            <p>ALT-3002 looks like a sweep from 192.0.2.32. Intel rates the address at 0.02 confidence, and the asset record identifies SCAN-INT-302 as a security scanning host. The graph still runs its four read-only queries and writes a step trace. It returns benign with no containment proposals, and the HITL gate records that review is not required.</p>
+          </div>
+        </li>
+        <li>
+          <span class="step-num">03</span>
+          <div>
+            <h3>Instructions hidden in a User-Agent</h3>
+            <p>ALT-4001 carries an instruction override and a request for a false-positive verdict in an HTTP header. The sanitizer flags both phrases and wraps the payload before any model call. Intel confidence for 198.51.100.51 stays low, so the verdict is suspicious rather than the one requested by the payload. A block proposal is prepared and held pending. Nothing is contained automatically.</p>
+          </div>
+        </li>
+      </ol>
+      <p class="note">These cases come from the synthetic 45-case dataset. The same records are available in the local DuckDB store, so each run can be reproduced offline.</p>
+    </section>
+
     <section class="wrap section" id="quickstart">
-      <p class="section-index">04 / Quickstart</p>
+      <p class="section-index">05 / Quickstart</p>
       <h2>Run it locally</h2>
       <p>No paid services and no keys are needed for the offline pipeline, tests, evaluation, or dashboard.</p>
       <pre><code>python -m venv .venv

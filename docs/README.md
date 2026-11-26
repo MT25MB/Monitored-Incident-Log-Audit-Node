@@ -52,7 +52,24 @@ Until `demo.png` exists, the README image link is broken. Either add the file
 or remove that one line from the README. Commit any asset you add; the Pages
 workflow publishes only files tracked in `docs/`.
 
-## 3. Enable GitHub Pages
+## 3. Example walkthroughs
+
+The site's "Three runs, start to finish" section uses cases from
+`evals/datasets/full_benchmark.jsonl`:
+
+- `ALT-2004`: an SSH brute force followed by a login. Intel and the asset record
+  raise severity to critical, and the graph pauses with two pending containment
+  proposals.
+- `ALT-3002`: an internal scanner in a booked window. Low intel confidence and
+  the asset record produce a benign verdict with no proposals.
+- `ALT-4001`: a User-Agent carrying an instruction override and a request for a
+  false-positive verdict. The sanitizer flags it, the verdict stays suspicious,
+  and no action runs without approval.
+
+Keep these summaries short if you edit them. They describe behaviour, not a
+marketing pitch, and the records are synthetic.
+
+## 4. Enable GitHub Pages
 
 In the repository on GitHub.com:
 
