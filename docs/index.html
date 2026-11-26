@@ -140,7 +140,7 @@ pip install -r requirements-dev.txt
 python -m pytest -v
 python -m evals.run_eval --pace --output-md evals/results.md
 streamlit run src/ui/app.py</code></pre>
-      <p>For terminal work, use <code>python -m src.cli triage</code>, <code>batch</code>, <code>replay</code>, <code>metrics</code>, or <code>init-db</code>. For LLM enrichment, copy <code>.env.example</code> to <code>.env</code> and add free-tier keys. The router applies gentle pacing, exponential backoff, and fallback to the next provider. A local Ollama endpoint can join the chain with <code>OLLAMA_ENABLED=true</code>; it needs no key. Free-tier model names change often, so check them against each provider's current docs.</p>
+      <p>For terminal work, use <code>python -m src.cli triage</code>, <code>batch</code>, <code>replay</code>, <code>metrics</code>, or <code>init-db</code>. Add <code>--export-dir</code> to <code>triage</code>, or use the dashboard button, to write a validated JSON bundle of the report, correlation summary, HITL decision, and step traces. For LLM enrichment, copy <code>.env.example</code> to <code>.env</code> and add free-tier keys. The router applies gentle pacing, exponential backoff, and fallback to the next provider. A local Ollama endpoint can join the chain with <code>OLLAMA_ENABLED=true</code>; it needs no key. Free-tier model names change often, so check them against each provider's current docs.</p>
       <p class="hero-actions">
         <a class="button" href="https://github.com/MT25MB/Monitored-Incident-Log-Audit-Node">MILAN on GitHub</a>
         <a class="text-link" href="https://github.com/MT25MB/Monitored-Incident-Log-Audit-Node/blob/main/evals/results.md">Read the benchmark report</a>
