@@ -50,12 +50,23 @@ python -m evals.run_eval --pace --output-md evals/results.md
 streamlit run src/ui/app.py
 ```
 
+The CLI runs the same workflow without the dashboard:
+
+```bash
+python -m src.cli init-db
+python -m src.cli triage --json-file alert.json --hitl approve
+python -m src.cli batch evals/datasets/full_benchmark.jsonl --limit 5 --pace --output-json batch.json
+```
+
+`triage` also accepts `--json '{"alert_id": ...}'`. Without `--hitl`, it prompts on a terminal and prints instructions elsewhere; no containment action runs without a decision.
+
 For LLM enrichment, copy `.env.example` to `.env` and add free-tier keys. A local Ollama endpoint can join the chain with `OLLAMA_ENABLED=true`; it needs no key and still reports $0.00. Put `ollama` first in `LLM_PROVIDER_ORDER` to use it as the primary provider. Model names change often, so check them against each provider's current docs.
 
 ## Layout
 
 ```
 src/
+  cli.py                  Triage, batch, and init-db commands
   schemas.py              Pydantic contracts: alerts, IOCs, MITRE, HITL, traces
   config.py               Provider chain, pacing, backoff, fallback, telemetry
   guardrails/sanitizer.py Redaction, injection detection, escaping, wrapping

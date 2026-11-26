@@ -1,0 +1,340 @@
+"""Command-line entry point for MILAN.
+
+Examples::
+
+    python -m src.cli init-db
+    python -m src.cli triage --json-file alert.json --hitl approve
+    python -m src.cli batch evals/datasets/full_benchmark.jsonl --limit 5 --pace
+
+All operations are local. No API key is required; LLM enrichment is opt-in and
+uses the free-tier provider chain.
+"""
+
+from __future__ import annotations
+
+import argparse
+import json
+import sys
+import uuid
+from datetime import datetime, timezone
+from pathlib import Path
+from typing import Any, Sequence
+
+import duckdb
+
+from src.agent.graph import build_graph, resume_triage, start_triage
+from src.config import Pacer, PacingConfig
+from src.schemas import SecurityAlert
+from src.tools.siem import init_soc_db
+
+__all__ = ["main"]
+
+
+_ROOT = Path(__file__).resolve().parents[1]
+DEFAULT_SOC_DB = _ROOT / "data" / "milan_soc.duckdb"
+DEFAULT_AUDIT_DB = _ROOT / "data" / "milan_audit.db"
+DEFAULT_DATASET = _ROOT / "evals" / "datasets" / "full_benchmark.jsonl"
+
+
+# ---------------------------------------------------------------------------
+# Helpers
+# ---------------------------------------------------------------------------
+
+
+def _load_alert(raw: str) -> SecurityAlert:
+    """Parse one alert, accepting either a bare object or a benchmark case."""
+    payload = json.loads(raw)
+    if isinstance(payload, dict) and "alert" in payload:
+        payload = payload["alert"]
+    return SecurityAlert.model_validate(payload)
+
+
+def _load_alerts(path: Path, limit: int | None) -> tuple[SecurityAlert, ...]:
+    """Read alerts from a JSONL file, with optional case wrapper."""
+    alerts: list[SecurityAlert] = []
+    with Path(path).open("r", encoding="utf-8") as handle:
+        for line_number, line in enumerate(handle, start=1):
+            if not line.strip():
+                continue
+            try:
+                alerts.append(_load_alert(line))
+            except (json.JSONDecodeError, ValueError) as exc:
+                raise ValueError(f"line {line_number}: invalid alert: {exc}") from exc
+            if limit is not None and len(alerts) >= limit:
+                break
+    if not alerts:
+        raise ValueError(f"no alerts found in {path}")
+    return tuple(alerts)
+
+
+def _print_summary(state: dict[str, Any]) -> None:
+    """Print the fields an analyst checks first."""
+    report = state.get("report")
+    traces = list(state.get("traces") or [])
+    latency = sum(float(trace.latency_ms) for trace in traces)
+    cost = sum(float(trace.estimated_cost_usd) for trace in traces)
+    flags = list(state.get("injection_flags") or [])
+
+    print(f"Alert: {state.get('alert').alert_id if state.get('alert') else '-'}")
+    if report is None:
+        print("Verdict: unavailable")
+    else:
+        print(f"Verdict: {report.classification.value} (confidence {report.confidence:.0%})")
+        print(f"Severity: {report.severity.value}")
+        techniques = [item.technique_id for item in report.mitre]
+        print(f"MITRE: {', '.join(techniques) if techniques else 'none'}")
+    print(f"Injection detected: {'yes' if state.get('injection_detected') else 'no'} ({len(flags)} flag(s))")
+    print(f"Latency: {latency:.1f} ms across {len(traces)} steps")
+    print(f"Tool calls: {state.get('tool_calls', 0)}")
+    print(f"Estimated cost: ${cost:.2f}")
+    if state.get("hitl_decision"):
+        print(f"HITL decision: {state['hitl_decision']}")
+
+
+# ---------------------------------------------------------------------------
+# Subcommands
+# ---------------------------------------------------------------------------
+
+
+def cmd_init_db(args: argparse.Namespace) -> int:
+    """Create and seed the local SOC database."""
+    path = init_soc_db(args.db_path or DEFAULT_SOC_DB)
+    connection = duckdb.connect(str(path), read_only=True)
+    try:
+        counts = {
+            table: connection.execute(f"SELECT COUNT(*) FROM {table}").fetchone()[0]
+            for table in ("siem_logs", "threat_intel", "asset_inventory")
+        }
+    finally:
+        connection.close()
+    print(f"SOC database: {path}")
+    print(
+        f"siem_logs={counts['siem_logs']} "
+        f"threat_intel={counts['threat_intel']} "
+        f"asset_inventory={counts['asset_inventory']}"
+    )
+    print("Idempotent: existing rows were left unchanged.")
+    return 0
+
+
+def cmd_triage(args: argparse.Namespace) -> int:
+    """Run one alert and handle any containment proposal."""
+    if not args.json_file and not args.json:
+        print("ERROR: provide --json-file or --json", file=sys.stderr)
+        return 2
+    try:
+        raw = (
+            Path(args.json_file).read_text(encoding="utf-8")
+            if args.json_file
+            else args.json
+        )
+        alert = _load_alert(raw)
+    except (OSError, json.JSONDecodeError, ValueError) as exc:
+        print(f"ERROR: invalid alert: {exc}", file=sys.stderr)
+        return 2
+
+    graph = build_graph(
+        db_path=args.db_path,
+        audit_db_path=args.audit_db,
+        enrich_with_llm=args.enrich_with_llm,
+    )
+    thread_id = args.thread_id or f"cli-{uuid.uuid4().hex[:8]}"
+    paused = start_triage(graph, alert, thread_id)
+    _print_summary(paused)
+
+    report = paused.get("report")
+    actions = list(report.recommended_actions) if report else []
+    if not actions:
+        print("Containment: none proposed")
+        return 0
+
+    print("Containment proposed:")
+    for action in actions:
+        print(f"  {action.action.value} -> {action.target} ({action.approval_status.value})")
+
+    mode = args.hitl or ("prompt" if sys.stdin.isatty() else "instructions")
+    if mode == "instructions":
+        print(
+            "No action executed. Re-run with --hitl approve or --hitl reject "
+            "to record a decision, or use the Streamlit HITL tab for interactive review."
+        )
+        return 0
+
+    if mode == "prompt":
+        try:
+            answer = input("Approve containment? [a/r/N] ").strip().lower()
+        except EOFError:
+            answer = ""
+        mode = "approve" if answer == "a" else "reject"
+        print("Defaulting to rejection." if mode == "reject" and answer != "r" else "")
+
+    final = resume_triage(graph, thread_id, mode, decided_by=args.reviewer)
+    print(f"HITL decision: {final.get('hitl_decision')}")
+    print("Executable actions after review: "
+          f"{sum(1 for action in final['report'].recommended_actions if action.is_executable)}")
+    return 0
+
+
+def cmd_batch(args: argparse.Namespace) -> int:
+    """Run alerts from a JSONL file and write a compact result summary."""
+    if args.limit is not None and args.limit < 1:
+        print("ERROR: --limit must be >= 1", file=sys.stderr)
+        return 2
+    try:
+        alerts = _load_alerts(args.dataset, args.limit)
+    except (OSError, ValueError) as exc:
+        print(f"ERROR: {exc}", file=sys.stderr)
+        return 2
+
+    graph = build_graph(
+        db_path=args.db_path,
+        audit_db_path=args.audit_db,
+        enrich_with_llm=args.enrich_with_llm,
+    )
+    pacer = Pacer(
+        PacingConfig.gentle() if args.pace else PacingConfig(enabled=False)
+    )
+    results: list[dict[str, Any]] = []
+    counts: dict[str, int] = {}
+    injection_flags = 0
+    errors = 0
+
+    for index, alert in enumerate(alerts, start=1):
+        pacer.wait()
+        thread_id = f"batch-{uuid.uuid4().hex[:8]}"
+        try:
+            paused = start_triage(graph, alert, thread_id)
+            final = resume_triage(
+                graph, thread_id, "rejected", decided_by="cli-batch"
+            )
+            report = final["report"]
+            verdict = report.classification.value
+            counts[verdict] = counts.get(verdict, 0) + 1
+            if final.get("injection_detected"):
+                injection_flags += 1
+            traces = final.get("traces", [])
+            row = {
+                "alert_id": alert.alert_id,
+                "verdict": verdict,
+                "severity": report.severity.value,
+                "mitre": [item.technique_id for item in report.mitre],
+                "injection_detected": bool(final.get("injection_detected")),
+                "tool_calls": final.get("tool_calls", 0),
+                "latency_ms": round(
+                    sum(float(trace.latency_ms) for trace in traces), 3
+                ),
+                "cost_usd": sum(float(trace.estimated_cost_usd) for trace in traces),
+                "hitl_decision": final.get("hitl_decision"),
+            }
+        except Exception as exc:  # keep the batch running across bad alerts
+            errors += 1
+            row = {"alert_id": alert.alert_id, "error": f"{type(exc).__name__}: {exc}"}
+            print(f"[{index}/{len(alerts)}] {alert.alert_id}: ERROR", file=sys.stderr)
+        else:
+            print(
+                f"[{index}/{len(alerts)}] {alert.alert_id}: "
+                f"{row['verdict']} · {row['tool_calls']} tools · "
+                f"{row['latency_ms']:.1f} ms"
+            )
+        results.append(row)
+
+    print(f"Processed {len(alerts)} alert(s).")
+    print("Verdicts: " + (", ".join(f"{k}={v}" for k, v in sorted(counts.items())) or "none"))
+    print(f"Injection flagged: {injection_flags} · Errors: {errors}")
+
+    if args.output_json:
+        destination = Path(args.output_json)
+        destination.parent.mkdir(parents=True, exist_ok=True)
+        destination.write_text(
+            json.dumps(
+                {
+                    "generated_at": datetime.now(timezone.utc).isoformat(
+                        timespec="seconds"
+                    ),
+                    "dataset": str(args.dataset),
+                    "total": len(results),
+                    "counts": counts,
+                    "injection_flags": injection_flags,
+                    "errors": errors,
+                    "cases": results,
+                },
+                indent=2,
+            ),
+            encoding="utf-8",
+        )
+        print(f"Results written to {destination}")
+    return 0
+
+
+# ---------------------------------------------------------------------------
+# Parser
+# ---------------------------------------------------------------------------
+
+
+def build_parser() -> argparse.ArgumentParser:
+    """Construct the CLI parser."""
+    parser = argparse.ArgumentParser(
+        prog="python -m src.cli",
+        description="Local SOC alert triage CLI for MILAN",
+    )
+    subparsers = parser.add_subparsers(dest="command", required=True)
+
+    triage = subparsers.add_parser("triage", help="Triage one alert")
+    source = triage.add_mutually_exclusive_group(required=True)
+    source.add_argument("--json-file", help="Path to a JSON alert file")
+    source.add_argument("--json", help="Inline JSON alert string")
+    triage.add_argument(
+        "--hitl",
+        choices=("instructions", "prompt", "approve", "reject"),
+        default=None,
+        help="How to handle a containment proposal (default: prompt on a TTY)",
+    )
+    triage.add_argument("--reviewer", default="cli_operator", help="Reviewer identity")
+    triage.add_argument("--thread-id", default=None, help="LangGraph thread id")
+    triage.add_argument("--db-path", default=None, help="Override the DuckDB path")
+    triage.add_argument("--audit-db", default=None, help="Override the SQLite audit path")
+    triage.add_argument(
+        "--enrich-with-llm",
+        action="store_true",
+        help="Refine the report through the free-tier LLM chain",
+    )
+    triage.set_defaults(func=cmd_triage)
+
+    batch = subparsers.add_parser("batch", help="Triage alerts from a JSONL file")
+    batch.add_argument(
+        "dataset",
+        nargs="?",
+        type=Path,
+        default=DEFAULT_DATASET,
+        help="JSONL alert file (default: full benchmark)",
+    )
+    batch.add_argument("--limit", type=int, default=None, help="Run only the first N alerts")
+    batch.add_argument(
+        "--pace", action="store_true", help="Apply gentle pacing between alerts"
+    )
+    batch.add_argument("--output-json", type=Path, default=None, help="Write a result summary")
+    batch.add_argument("--db-path", default=None, help="Override the DuckDB path")
+    batch.add_argument("--audit-db", default=None, help="Override the SQLite audit path")
+    batch.add_argument(
+        "--enrich-with-llm",
+        action="store_true",
+        help="Refine reports through the free-tier LLM chain",
+    )
+    batch.set_defaults(func=cmd_batch)
+
+    init_db = subparsers.add_parser("init-db", help="Create and seed the local SOC database")
+    init_db.add_argument("--db-path", default=None, help="Override the DuckDB path")
+    init_db.set_defaults(func=cmd_init_db)
+
+    return parser
+
+
+def main(argv: Sequence[str] | None = None) -> int:
+    """CLI entry point."""
+    parser = build_parser()
+    args = parser.parse_args(argv)
+    return args.func(args)
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

@@ -49,6 +49,7 @@ dev = [
 ]
 
 [project.scripts]
+milan = "src.cli:main"
 milan-eval = "evals.run_eval:main"
 milan-ui = "src.ui.app:main"
 
