@@ -78,6 +78,7 @@ src/
   guardrails/sanitizer.py Redaction, injection detection, escaping, wrapping
   guardrails/mitre.py     Local ATT&CK catalogue and technique verification
   tools/siem.py           DuckDB seeding and three read-only tools
+  tools/ioc_parser.py     Normalized IOC extraction from text and rows
   agent/graph.py          LangGraph machine, step cap, HITL checkpoint
   agent/correlator.py     Deterministic IOC, asset, and anomaly correlation
   monitoring/store.py     SQLite run telemetry and append-only HITL audit log

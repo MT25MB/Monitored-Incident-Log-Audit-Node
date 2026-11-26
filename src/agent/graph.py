@@ -42,6 +42,7 @@ from src.schemas import (
     StepTrace,
     TriageReport,
 )
+from src.tools.ioc_parser import extract_iocs, primary_indicator
 from src.tools.siem import (
     check_threat_intel,
     init_soc_db,
@@ -103,9 +104,6 @@ class TriageState(BaseModel):
 # Static lookup helpers (synthetic data only)
 # ---------------------------------------------------------------------------
 
-_IP_RE = re.compile(r"\b(?:\d{1,3}\.){3}\d{1,3}\b")
-_DOMAIN_RE = re.compile(r"\b(?:[a-z0-9-]+\.)+(?:example\.net|example\.com|example\.org)\b")
-_HASH_RE = re.compile(r"\b[a-fA-F0-9]{64}\b")
 _HOSTNAME_RE = re.compile(r"\b(?:WS|SRV|DC)-[A-Z]+-\d+\b")
 
 
@@ -244,11 +242,7 @@ def _next_action(state: TriageState) -> dict[str, Any] | None:
             "description": "Collect all SIEM events for the alert",
         }
     if state.step == 1:
-        indicator = (
-            _first_match(_HASH_RE, payload)
-            or _first_match(_DOMAIN_RE, payload)
-            or _first_match(_IP_RE, payload)
-        )
+        indicator = primary_indicator(extract_iocs(payload))
         if indicator:
             return {
                 "tool": "check_threat_intel",
@@ -389,7 +383,10 @@ def _build_proposals(
 
     proposals: list[ContainmentProposal] = []
     payload = state.sanitized_payload or ""
-    target_ip = (state.alert.source_ip if state.alert else None) or _first_match(_IP_RE, payload)
+    parsed_iocs = extract_iocs(payload)
+    target_ip = (state.alert.source_ip if state.alert else None) or (
+        parsed_iocs.ip_addresses[0] if parsed_iocs.ip_addresses else None
+    )
     if target_ip:
         proposals.append(
             ContainmentProposal(
@@ -443,13 +440,11 @@ def synthesize(
     severity = max_severity(state.alert.severity, correlation.suggested_floor_severity)
     confidence = round(min(0.99, max(max_confidence, 0.35)), 2)
     payload_text = state.sanitized_payload or ""
-    first_ip = _first_match(_IP_RE, payload_text)
-    first_domain = _first_match(_DOMAIN_RE, payload_text)
-    first_hash = _first_match(_HASH_RE, payload_text)
+    parsed_iocs = extract_iocs(payload_text)
     iocs = ExtractedIOCs(
-        ip_addresses=[first_ip] if first_ip else [],
-        domains=[first_domain] if first_domain else [],
-        file_hashes=[first_hash] if first_hash else [],
+        ip_addresses=list(parsed_iocs.ip_addresses),
+        domains=list(parsed_iocs.domains),
+        file_hashes=list(parsed_iocs.hashes),
     )
 
     candidate_mitre = _build_mitre(state)

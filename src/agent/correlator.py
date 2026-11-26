@@ -9,12 +9,12 @@ up, and a suggested severity floor.
 
 from __future__ import annotations
 
-import re
 from typing import Any, Iterable, Mapping, Sequence
 
 from pydantic import BaseModel, Field
 
 from src.schemas import Severity
+from src.tools.ioc_parser import extract_iocs_from_rows
 
 __all__ = [
     "IndicatorMatch",
@@ -23,10 +23,6 @@ __all__ = [
     "max_severity",
 ]
 
-
-_IP_RE = re.compile(r"\b(?:\d{1,3}\.){3}\d{1,3}\b")
-_DOMAIN_RE = re.compile(r"\b(?:[a-z0-9-]+\.)+(?:example\.net|example\.com|example\.org)\b")
-_HASH_RE = re.compile(r"\b[a-fA-F0-9]{64}\b")
 
 _SEVERITY_RANK = {
     Severity.LOW: 0,
@@ -77,15 +73,8 @@ def _rows(tool_results: Sequence[Mapping[str, Any]], tool_name: str) -> list[dic
 
 
 def _log_indicators(row: Mapping[str, Any]) -> set[str]:
-    found: set[str] = set()
-    for field_name in ("source_ip", "dest_ip"):
-        value = row.get(field_name)
-        if isinstance(value, str) and value:
-            found.add(value)
-    message = str(row.get("message") or "")
-    for pattern in (_HASH_RE, _DOMAIN_RE, _IP_RE):
-        found.update(pattern.findall(message))
-    return found
+    """Collect IP, domain, and hash indicators from one log row."""
+    return set(extract_iocs_from_rows([row]).all_indicators)
 
 
 def _count_anomalies(logs: Iterable[Mapping[str, Any]]) -> tuple[int, int]:
