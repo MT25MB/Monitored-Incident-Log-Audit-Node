@@ -3,7 +3,8 @@
 The files in this folder are the GitHub Pages site. `index.html` and
 `styles.css` are plain static files, so there is no build step and nothing to
 pay for. `.github/workflows/pages.yml` publishes this folder on every push to
-`main`.
+`main`. The display face is self-hosted in `docs/fonts/`; keep those two WOFF2
+files with the stylesheet.
 
 ## 1. Logo image
 

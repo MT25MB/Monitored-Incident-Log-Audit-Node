@@ -1,0 +1,156 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-11-26T00:00:00Z",
+  "title": "Design System: MILAN: Monitored Incident & Log Audit Node",
+  "extensions": {
+    "colorMeta": {
+      "paper": {
+        "role": "neutral",
+        "displayName": "Warm Paper",
+        "canonical": "#f4f3ee",
+        "tonalRamp": ["#3a3a33", "#5c5b51", "#7d7b6e", "#a09d8d", "#c2bdaa", "#d9d5c4", "#eae7dc", "#f4f3ee"]
+      },
+      "surface": {
+        "role": "neutral",
+        "displayName": "White Surface",
+        "canonical": "#ffffff",
+        "tonalRamp": ["#1a1a1a", "#3d3d3d", "#616161", "#858585", "#a9a9a9", "#cdcdcd", "#e8e8e8", "#ffffff"]
+      },
+      "ink": {
+        "role": "neutral",
+        "displayName": "Ink Charcoal",
+        "canonical": "#17201e",
+        "tonalRamp": ["#0b100e", "#17201e", "#24312d", "#34443e", "#4a5e56", "#6b837a", "#9db3aa", "#d8e3de"]
+      },
+      "muted": {
+        "role": "neutral",
+        "displayName": "Muted Sage-Grey",
+        "canonical": "#52605c",
+        "tonalRamp": ["#232a27", "#36423d", "#45534e", "#52605c", "#68766f", "#87928c", "#aab4af", "#d6ddd9"]
+      },
+      "line": {
+        "role": "neutral",
+        "displayName": "Hairline Grey",
+        "canonical": "#d3d6cf",
+        "tonalRamp": ["#5c6258", "#7d8478", "#9aa194", "#b6bcb0", "#c8cdc3", "#d3d6cf", "#e4e7e0", "#f2f3ef"]
+      },
+      "accent": {
+        "role": "primary",
+        "displayName": "Brick Red",
+        "canonical": "#a8432a",
+        "tonalRamp": ["#3d1a10", "#5c2817", "#7a3520", "#974029", "#a8432a", "#bc5d42", "#d08a72", "#e9b9a6"]
+      },
+      "code-bg": {
+        "role": "neutral",
+        "displayName": "Code Field",
+        "canonical": "#17201e",
+        "tonalRamp": ["#0b100e", "#17201e", "#24312d", "#34443e", "#4a5e56", "#6b837a", "#9db3aa", "#d8e3de"]
+      },
+      "code-fg": {
+        "role": "neutral",
+        "displayName": "Code Text",
+        "canonical": "#e8ece7",
+        "tonalRamp": ["#5a635b", "#778178", "#959e94", "#b3bab0", "#cdd3ca", "#e8ece7", "#f3f5f1", "#fbfcfa"]
+      },
+      "inline-code-bg": {
+        "role": "neutral",
+        "displayName": "Inline Code Field",
+        "canonical": "#e9e9e2",
+        "tonalRamp": ["#5a5a52", "#7b7b71", "#9b9b8f", "#bab9ae", "#d2d2c8", "#e9e9e2", "#f2f2ed", "#f9f9f6"]
+      }
+    },
+    "typographyMeta": {
+      "display": { "displayName": "Display", "purpose": "The single H1; self-hosted Archivo, tight negative tracking." },
+      "headline": { "displayName": "Headline", "purpose": "Section H2s in Archivo." },
+      "title": { "displayName": "Title", "purpose": "Case-card title in Archivo; section H3s use the body face." },
+      "body": { "displayName": "Body", "purpose": "All prose and UI copy in the system sans." },
+      "label": { "displayName": "Label / Data", "purpose": "Identifiers, commands, inline code, and data cells in mono." }
+    },
+    "shadows": [],
+    "motion": [
+      { "name": "smooth-scroll", "value": "scroll-behavior: smooth", "purpose": "Anchor navigation scrolls smoothly; disabled under prefers-reduced-motion." }
+    ],
+    "breakpoints": [
+      { "name": "md", "value": "900px", "purpose": "Hero and two-column grids collapse to one column." },
+      { "name": "sm", "value": "560px", "purpose": "Body type, container inset, header, sections, and evidence rows tighten." }
+    ]
+  },
+  "components": [
+    {
+      "name": "Primary Button",
+      "kind": "button",
+      "refersTo": "button-primary",
+      "description": "Solid ink call to action that flips to brick red on hover.",
+      "html": "<a class=\"ds-button\" href=\"#\">Run MILAN locally</a>",
+      "css": ".ds-button { display: inline-block; background: var(--ink); color: var(--paper); text-decoration: none; padding: 12px 18px; border: 0; border-radius: 0; font: 600 14px/1 var(--font-body); } .ds-button:hover { background: var(--accent); color: var(--paper); } .ds-button:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }"
+    },
+    {
+      "name": "Case File",
+      "kind": "card",
+      "refersTo": "case-file",
+      "description": "The signature report card: ruled case header, verdict, evidence list, and paused containment gate.",
+      "html": "<article class=\"ds-case\"><div class=\"ds-case-head\"><span class=\"ds-case-id\">ALT-2004</span><span class=\"ds-case-kind\">Auth log</span></div><div class=\"ds-case-title\">SSH brute force, then a login</div><div class=\"ds-verdict\"><span class=\"ds-verdict-word\">Malicious</span><span class=\"ds-verdict-detail\">Critical severity</span></div><dl class=\"ds-evidence\"><div><dt>Indicator</dt><dd>198.51.100.14</dd></div><div><dt>Technique</dt><dd>T1110</dd></div></dl><div class=\"ds-gate\"><p class=\"ds-gate-state\">Paused at containment gate</p><div class=\"ds-gate-row\"><span>Block 198.51.100.14</span><span class=\"ds-pending\">Pending</span></div></div></article>",
+      "css": ".ds-case { background: var(--surface); border: 1px solid var(--line); padding: 22px 24px 20px; color: var(--ink); } .ds-case-head { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; border-bottom: 1px solid var(--line); padding-bottom: 12px; } .ds-case-id { font: 600 14px/1 var(--font-mono); } .ds-case-kind { font: 13px/1.4 var(--font-body); color: var(--muted); } .ds-case-title { font: 600 1.15rem/1.3 var(--font-display); letter-spacing: -0.02em; margin: 14px 0 10px; } .ds-verdict { display: flex; align-items: baseline; gap: 14px; flex-wrap: wrap; margin-bottom: 14px; } .ds-verdict-word { font: 700 1.6rem/1 var(--font-display); color: var(--accent); letter-spacing: -0.03em; } .ds-verdict-detail { font: 13px/1.4 var(--font-body); color: var(--muted); } .ds-evidence { margin: 0; } .ds-evidence > div { display: grid; grid-template-columns: 118px minmax(0, 1fr); gap: 10px; padding: 12px 0; border-bottom: 1px solid var(--line); } .ds-evidence dt { font: 13px/1.4 var(--font-body); color: var(--muted); } .ds-evidence dd { margin: 0; font: 13px/1.4 var(--font-mono); color: var(--ink); overflow-wrap: break-word; min-width: 0; } .ds-gate { margin-top: 18px; } .ds-gate-state { font: 600 13px/1.4 var(--font-body); margin: 0 0 8px; } .ds-gate-row { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; border-top: 1px solid var(--line); padding: 12px 0; font: 14px/1.6 var(--font-body); } .ds-pending { font: 600 12px/1 var(--font-mono); color: var(--accent); }"
+    },
+    {
+      "name": "Data Table",
+      "kind": "custom",
+      "refersTo": "table",
+      "description": "Ruled, horizontally scrollable data grid with a mono value column.",
+      "html": "<div class=\"ds-table-scroll\"><table class=\"ds-table\"><caption>Step trace for ALT-2004</caption><thead><tr><th scope=\"col\">Step</th><th scope=\"col\">Read-only tool</th><th scope=\"col\">What it returned</th></tr></thead><tbody><tr><th scope=\"row\">1</th><td>query_siem_logs</td><td>Repeated auth failures</td></tr></tbody></table></div>",
+      "css": ".ds-table-scroll { overflow-x: auto; } .ds-table { border-collapse: collapse; border: 1px solid var(--line); background: var(--surface); width: 100%; min-width: 540px; font: 14px/1.6 var(--font-body); font-variant-numeric: tabular-nums; } .ds-table caption { text-align: left; padding: 14px 16px; font: 13px/1.4 var(--font-body); color: var(--muted); border-bottom: 1px solid var(--line); } .ds-table th, .ds-table td { text-align: left; vertical-align: top; padding: 11px 16px; border-bottom: 1px solid var(--line); } .ds-table thead th { font: 600 13px/1.4 var(--font-body); color: var(--muted); } .ds-table tbody th { font-weight: 600; color: var(--ink); } .ds-table tbody td { color: var(--muted); } .ds-table tbody td:last-child { font-family: var(--font-mono); color: var(--ink); } .ds-table tr:last-child th, .ds-table tr:last-child td { border-bottom: 0; }"
+    },
+    {
+      "name": "Code Block",
+      "kind": "custom",
+      "refersTo": "code-block",
+      "description": "Dark monospaced field for the quickstart command list.",
+      "html": "<pre class=\"ds-code\"><code>python -m pytest -v\nstreamlit run src/ui/app.py</code></pre>",
+      "css": ".ds-code { overflow-x: auto; background: var(--code-bg); color: var(--code-fg); padding: 22px 24px; margin: 24px 0; font: 14px/1.75 var(--font-mono); border-radius: 0; }"
+    },
+    {
+      "name": "Primary Navigation",
+      "kind": "nav",
+      "description": "Compact wordmark and muted link row with a brick-red hover.",
+      "html": "<nav class=\"ds-nav\" aria-label=\"Primary\"><a class=\"ds-nav-brand\" href=\"#\">MILAN</a><a class=\"ds-nav-link\" href=\"#\">How it works</a><a class=\"ds-nav-link\" href=\"#\">Evidence</a><a class=\"ds-nav-link\" href=\"#\">Cases</a></nav>",
+      "css": ".ds-nav { display: flex; align-items: center; justify-content: space-between; gap: 24px; flex-wrap: wrap; border-bottom: 1px solid var(--line); padding: 12px 0; min-height: 76px; } .ds-nav-brand { font: 700 18px/1 var(--font-display); letter-spacing: -0.02em; color: var(--ink); text-decoration: none; } .ds-nav-link { font: 14px/1.4 var(--font-body); color: var(--muted); text-decoration: none; padding: 6px 0; } .ds-nav-link:hover { color: var(--accent); } .ds-nav a:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }"
+    },
+    {
+      "name": "Text Link",
+      "kind": "custom",
+      "description": "Secondary action: accent text with a hairline underline.",
+      "html": "<a class=\"ds-text-link\" href=\"#\">Read the source</a>",
+      "css": ".ds-text-link { font: 14px/1.4 var(--font-body); color: var(--accent); text-decoration: none; border-bottom: 1px solid currentColor; padding-bottom: 2px; } .ds-text-link:hover { text-decoration-thickness: 2px; } .ds-text-link:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }"
+    }
+  ],
+  "narrative": {
+    "northStar": "The Incident Record",
+    "overview": "MILAN's documentation reads as a case file, not a product landing page. A warm paper ground, hairline ink-grey rules, and one white case card make the page behave like a reproducible report: a verdict, a short evidence list, and a containment gate paused for a person. Density is calm and forensic — generous vertical rhythm between ruled sections, tight monospaced data inside the card. The confirmed visual rejection is the eyebrow/numbered-list SaaS template; nothing in the build uses kickers, pills, decorative badges, or shadows.\n\nPersonality is plain and human. Colour is almost entirely ink on paper, with one brick-red signal reserved for the moments that need attention — a verdict, a pending action, a link, a focus ring. The self-hosted Archivo face carries every heading with tight negative tracking, the system sans carries prose, and a system mono carries identifiers, commands, and data cells. All assets are local and the system needs no build step, so it stays legible offline.",
+    "keyCharacteristics": [
+      "Warm paper ground (#f4f3ee) with a single white surface step and 1px hairline rules for all structure.",
+      "Archivo display headings, system-sans body, system-mono for identifiers and data.",
+      "A case-file signature: ruled case header, verdict, definition-list evidence, and a paused HITL gate with two pending actions.",
+      "Flat and square: no shadows, no radius, no icon glyphs.",
+      "One container (1120px), one responsive pair of breakpoints (900px, 560px), reduced-motion honored."
+    ],
+    "rules": [
+      { "name": "The Brick-Red-Is-Signal Rule", "body": "Accent is never a field or decoration. It appears only on verdicts, pending states, links, focus, caret, selection, and hover — the moments asking for attention.", "section": "colors" },
+      { "name": "The Hairline Rule", "body": "Every boundary is one pixel of line, never a shadow, gradient, or colour block.", "section": "colors" },
+      { "name": "The Mono-for-Data Rule", "body": "Mono is reserved for identifiers, commands, inline code, and data cells. Prose and headings never use it, and nothing is uppercased for tracking.", "section": "typography" },
+      { "name": "The Flat-By-Default Rule", "body": "Surfaces are flat at rest and in every state. Never introduce shadows, glows, or tonal layering beyond the single paper/white step; use a hairline rule to separate.", "section": "elevation" }
+    ],
+    "dos": [
+      "Do centre content in the 1120px container using min(calc(100% - 48px), 1120px), tightening to a 16px inset at ≤560px.",
+      "Do build structure from 1px line rules and the paper/white step, keeping accent on signal only.",
+      "Do set display headings in Archivo with negative tracking, prose in the system sans, and identifiers/data in mono.",
+      "Do keep surfaces flat and square, and render numeric values in tabular figures.",
+      "Do honor prefers-reduced-motion and keep the page navigable without JavaScript."
+    ],
+    "donts": [
+      "Don't add border-radius, pills, shadows, glows, or gradient fills.",
+      "Don't use brick red as a large field or background; it is a signal colour, not a ground.",
+      "Don't set body copy in mono or set display headings in a system font.",
+      "Don't fill case-file or table cells with placeholder values; displayed records must stay checkable."
+    ]
+  }
+}
