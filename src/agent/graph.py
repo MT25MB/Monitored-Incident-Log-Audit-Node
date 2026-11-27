@@ -195,6 +195,17 @@ def _persist_run(
                 traces_json=json.dumps(
                     [trace.model_dump(mode="json") for trace in traces]
                 ),
+                pending_actions_json=json.dumps(
+                    [
+                        {
+                            "action": action.action.value,
+                            "target": action.target,
+                            "approval_status": action.approval_status.value,
+                        }
+                        for action in report.recommended_actions
+                        if action.approval_status is ApprovalStatus.PENDING
+                    ]
+                ),
                 status=status,
                 hitl_decision=decision,
             ),

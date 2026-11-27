@@ -58,6 +58,7 @@ python -m src.cli triage --json-file alert.json --hitl approve
 python -m src.cli batch evals/datasets/full_benchmark.jsonl --limit 5 --pace --output-json batch.json
 python -m src.cli replay evals/datasets/full_benchmark.jsonl --source sysmon --adversarial-only --delay-sec 0.5
 python -m src.cli metrics
+python -m src.cli handoff --format markdown
 ```
 
 `replay` streams alerts in file order, supports `--source`, `--adversarial-only`, `--limit`, and `--delay-sec`, and stores each run in the SQLite audit/trace database. Add `--export-dir PATH` to `triage` to write a validated JSON bundle with the report, correlation summary, HITL metadata, and step traces to `data/exports/` or a folder of your choice. The Streamlit dashboard has the same export button.
@@ -83,6 +84,7 @@ src/
   agent/correlator.py     Deterministic IOC, asset, and anomaly correlation
   agent/incident_bundler.py  Groups related alerts into incident contexts
   agent/playbooks.py      Reviewer guidance for containment actions
+  agent/handoff.py        Shift handoff from the audit store
   monitoring/store.py     SQLite run telemetry and append-only HITL audit log
   monitoring/metrics.py   MTTT, latency, tool, provider, and HITL aggregates
   ui/app.py               Streamlit triage and monitoring dashboard

@@ -66,6 +66,7 @@ class RunRecord:
     provider_used: str | None = None
     fallback_count: int = 0
     traces_json: str = "[]"
+    pending_actions_json: str = "[]"
     status: str = "paused"
     hitl_decision: str | None = None
 
@@ -83,6 +84,7 @@ class RunRecord:
             self.provider_used,
             int(self.fallback_count),
             self.traces_json,
+            self.pending_actions_json,
             self.status,
             self.hitl_decision,
         )
@@ -131,6 +133,7 @@ _DDL: tuple[str, ...] = (
         provider_used      TEXT,
         fallback_count     INTEGER NOT NULL DEFAULT 0,
         traces_json        TEXT NOT NULL DEFAULT '[]',
+        pending_actions_json TEXT NOT NULL DEFAULT '[]',
         status             TEXT NOT NULL DEFAULT 'paused',
         hitl_decision      TEXT
     )
@@ -158,6 +161,14 @@ def init_audit_db(db_path: str | Path | None = None) -> Path:
     with sqlite3.connect(path) as connection:
         for statement in _DDL:
             connection.execute(statement)
+        columns = {
+            row[1] for row in connection.execute("PRAGMA table_info(investigation_runs)")
+        }
+        if "pending_actions_json" not in columns:
+            connection.execute(
+                "ALTER TABLE investigation_runs "
+                "ADD COLUMN pending_actions_json TEXT NOT NULL DEFAULT '[]'"
+            )
     return path
 
 
@@ -170,8 +181,8 @@ _UPSERT_RUN = """
 INSERT INTO investigation_runs (
     run_id, alert_id, timestamp, verdict, severity, injection_detected,
     total_latency_ms, step_count, provider_used, fallback_count,
-    traces_json, status, hitl_decision
-) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    traces_json, pending_actions_json, status, hitl_decision
+) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 ON CONFLICT(run_id) DO UPDATE SET
     verdict = excluded.verdict,
     severity = excluded.severity,
@@ -181,6 +192,7 @@ ON CONFLICT(run_id) DO UPDATE SET
     provider_used = excluded.provider_used,
     fallback_count = excluded.fallback_count,
     traces_json = excluded.traces_json,
+    pending_actions_json = excluded.pending_actions_json,
     status = excluded.status,
     hitl_decision = excluded.hitl_decision
 """
@@ -302,7 +314,8 @@ def get_recent_runs(
             """
             SELECT run_id, alert_id, timestamp, verdict, severity,
                    injection_detected, total_latency_ms, step_count,
-                   provider_used, fallback_count, status, hitl_decision
+                   provider_used, fallback_count, pending_actions_json,
+                   status, hitl_decision
             FROM investigation_runs ORDER BY timestamp DESC LIMIT ?
             """,
             (max(1, int(limit)),),

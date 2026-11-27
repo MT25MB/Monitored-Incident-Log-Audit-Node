@@ -23,6 +23,7 @@ from typing import Any, Sequence
 import duckdb
 
 from src.agent.graph import MAX_INVESTIGATION_STEPS, build_graph, resume_triage, start_triage
+from src.agent.handoff import build_handoff, render_handoff
 from src.agent.playbooks import get_playbook
 from src.config import Pacer, PacingConfig
 from src.export import write_export
@@ -362,6 +363,25 @@ def cmd_replay(args: argparse.Namespace) -> int:
     return 0
 
 
+def cmd_handoff(args: argparse.Namespace) -> int:
+    """Print a shift handoff from the audit store."""
+    try:
+        summary = build_handoff(db_path=args.audit_db, limit=args.limit or 50)
+    except ValueError as exc:
+        print(f"ERROR: {exc}", file=sys.stderr)
+        return 2
+
+    report = render_handoff(summary, fmt=args.format)
+    if args.output:
+        destination = Path(args.output)
+        destination.parent.mkdir(parents=True, exist_ok=True)
+        destination.write_text(report, encoding="utf-8")
+        print(f"Handoff written to {destination}")
+    else:
+        print(report)
+    return 0
+
+
 def cmd_metrics(args: argparse.Namespace) -> int:
     """Print aggregate metrics from the SQLite audit store."""
     summary = compute_metrics(db_path=args.audit_db)
@@ -499,6 +519,15 @@ def build_parser() -> argparse.ArgumentParser:
     replay.add_argument("--db-path", default=None, help="Override the DuckDB path")
     replay.add_argument("--audit-db", default=None, help="Override the SQLite audit path")
     replay.set_defaults(func=cmd_replay)
+
+    handoff = subparsers.add_parser("handoff", help="Print a shift handoff summary")
+    handoff.add_argument("--audit-db", default=None, help="Override the SQLite audit path")
+    handoff.add_argument("--limit", type=int, default=None, help="Maximum runs to include")
+    handoff.add_argument(
+        "--format", choices=("markdown", "text"), default="markdown", help="Output format"
+    )
+    handoff.add_argument("--output", type=Path, default=None, help="Write to a file")
+    handoff.set_defaults(func=cmd_handoff)
 
     metrics = subparsers.add_parser("metrics", help="Summarize the SQLite audit store")
     metrics.add_argument("--audit-db", default=None, help="Override the SQLite audit path")
