@@ -154,9 +154,7 @@ def test_synthesis_uses_floor_and_passes_correlation_to_llm(
 
     db = init_soc_db(tmp_path / "soc.duckdb")
     audit = tmp_path / "audit.db"
-    graph = build_graph(
-        db_path=str(db), audit_db_path=str(audit), enrich_with_llm=True
-    )
+    graph = build_graph(db_path=str(db), audit_db_path=str(audit), enrich_with_llm=True)
     alert = SecurityAlert(
         alert_id="ALT-1001",
         severity=Severity.LOW,

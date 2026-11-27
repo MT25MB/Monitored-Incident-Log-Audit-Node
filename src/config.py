@@ -27,10 +27,11 @@ import random
 import re
 import threading
 import time
+from collections.abc import Callable, Mapping
 from dataclasses import dataclass, field
 from enum import Enum
 from pathlib import Path
-from typing import Any, Callable, Generic, Mapping, Protocol, TypeVar, runtime_checkable
+from typing import Any, Generic, Protocol, TypeVar, runtime_checkable
 
 import httpx
 from pydantic import BaseModel, ValidationError
@@ -127,7 +128,8 @@ class RetryConfig:
             self.base_delay_seconds * (2**exponent),
             self.max_delay_seconds,
         )
-        return base + random.uniform(0.0, self.jitter_seconds)
+        # Jitter is timing noise, not a security token.
+        return base + random.uniform(0.0, self.jitter_seconds)  # noqa: S311
 
 
 @dataclass(frozen=True)
@@ -170,8 +172,7 @@ class Settings:
             ProviderConfig(
                 provider=provider,
                 api_key=values.get(_KEY_ENV.get(provider, "")) or None,
-                model=values.get(_MODEL_ENV.get(provider, ""))
-                or _DEFAULT_MODELS[provider],
+                model=values.get(_MODEL_ENV.get(provider, "")) or _DEFAULT_MODELS[provider],
                 base_url=(
                     f"{values.get('OLLAMA_BASE_URL', _OLLAMA_DEFAULT_BASE_URL).rstrip('/')}/v1"
                     if provider is Provider.OLLAMA
@@ -258,9 +259,7 @@ def _env_int(value: str | None, default: int) -> int:
 def _provider_order(values: Mapping[str, str]) -> list[Provider]:
     """Parse ``LLM_PROVIDER_ORDER``, de-duplicate, append any missing provider."""
     order: list[Provider] = []
-    for token in values.get(
-        "LLM_PROVIDER_ORDER", "gemini,groq,openrouter,ollama"
-    ).split(","):
+    for token in values.get("LLM_PROVIDER_ORDER", "gemini,groq,openrouter,ollama").split(","):
         try:
             provider = Provider(token.strip().lower())
         except ValueError:
@@ -395,7 +394,8 @@ class Pacer:
         with self._lock:
             now = self._clock()
             remaining = self._config.min_interval_seconds - (now - self._last_call)
-            jitter = random.uniform(0.0, self._config.jitter_seconds)
+            # Jitter prevents a thundering herd; it is not used for secrets.
+            jitter = random.uniform(0.0, self._config.jitter_seconds)  # noqa: S311
             delay = max(0.0, remaining) + jitter
             if delay > 0.0:
                 self._sleep_fn(delay)
@@ -534,13 +534,21 @@ def _extract_json_object(text: str) -> dict[str, Any]:
     try:
         obj: Any = json.loads(cleaned)
     except json.JSONDecodeError:
-        match = re.search(r"\{.*\}", cleaned, re.DOTALL)
-        if match is None:
-            raise SchemaParseError("model response did not contain a JSON object")
-        try:
-            obj = json.loads(match.group(0))
-        except json.JSONDecodeError as exc:
-            raise SchemaParseError("model response contained invalid JSON") from exc
+        # Model responses often wrap the object in prose. Scan for the first
+        # balanced object instead of greedily matching every brace in the text.
+        decoder = json.JSONDecoder()
+        for index, char in enumerate(cleaned):
+            if char != "{":
+                continue
+            try:
+                candidate, _ = decoder.raw_decode(cleaned[index:])
+            except json.JSONDecodeError:
+                continue
+            if isinstance(candidate, dict):
+                obj = candidate
+                break
+        else:
+            raise SchemaParseError("model response did not contain a JSON object") from None
 
     if not isinstance(obj, dict):
         raise SchemaParseError("model response was not a JSON object")

@@ -9,8 +9,8 @@ from __future__ import annotations
 
 import argparse
 import sys
+from collections.abc import Sequence
 from pathlib import Path
-from typing import Sequence
 
 from pydantic import ValidationError
 
@@ -71,10 +71,7 @@ def _case_line(case: CaseResult, mode: str) -> str:
     elif mode == "Latency spike":
         detail = f"{case.latency_ms:.3f} ms across {case.tool_calls} tool calls"
     else:
-        detail = (
-            f"detected={case.injection_detected}, "
-            f"blocked={case.injection_pass}"
-        )
+        detail = f"detected={case.injection_detected}, blocked={case.injection_pass}"
     suffix = f"; error: {case.error}" if case.error else ""
     return f"  - {case.case_id} ({case.alert_id}): {detail}{suffix}"
 
@@ -89,7 +86,10 @@ def render_report(
     """Render a concise Markdown-free terminal report."""
     lines = [
         f"Failure breakdown: {path}",
-        f"Run: {artifact.generated_at} | Cases: {artifact.summary.get('total_cases', len(artifact.cases))}",
+        (
+            f"Run: {artifact.generated_at} | "
+            f"Cases: {artifact.summary.get('total_cases', len(artifact.cases))}"
+        ),
     ]
     if latency_threshold_ms:
         lines.append(f"Latency threshold: {latency_threshold_ms:.3f} ms")
@@ -133,16 +133,12 @@ def main(argv: Sequence[str] | None = None) -> int:
         return 1
 
     try:
-        artifact = RunArtifact.model_validate_json(
-            args.path.read_text(encoding="utf-8")
-        )
+        artifact = RunArtifact.model_validate_json(args.path.read_text(encoding="utf-8"))
     except (ValidationError, ValueError) as exc:
         print(f"ERROR: invalid benchmark artifact: {exc}", file=sys.stderr)
         return 1
 
-    groups = group_failures(
-        artifact.cases, latency_threshold_ms=args.latency_ms
-    )
+    groups = group_failures(artifact.cases, latency_threshold_ms=args.latency_ms)
     print(
         render_report(
             artifact,

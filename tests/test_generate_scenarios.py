@@ -45,9 +45,7 @@ def test_cases_validate_and_cover_all_families() -> None:
 
 def test_adversarial_payloads_are_detected() -> None:
     hostile = [
-        case
-        for case in generate(count=12, seed=7)
-        if case["expected"]["injection_expected"]
+        case for case in generate(count=12, seed=7) if case["expected"]["injection_expected"]
     ]
     assert hostile
     for case in hostile:

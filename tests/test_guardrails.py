@@ -46,7 +46,6 @@ from src.tools.siem import (  # noqa: E402
     query_siem_logs,
 )
 
-
 # ---------------------------------------------------------------------------
 # Fixtures
 # ---------------------------------------------------------------------------
@@ -65,10 +64,7 @@ def sample_alert() -> SecurityAlert:
         alert_id="ALT-1001",
         severity=Severity.CRITICAL,
         title="Encoded PowerShell and C2 beacon",
-        raw_payload=(
-            "powershell.exe -enc JABz from 203.0.113.42 to WS-FIN-014 "
-            "password=hunter2"
-        ),
+        raw_payload=("powershell.exe -enc JABz from 203.0.113.42 to WS-FIN-014 password=hunter2"),
         source_ip="203.0.113.42",
         hostname="WS-FIN-014",
     )
@@ -102,11 +98,7 @@ def test_redacts_aws_key_bearer_password_api_key_and_ssn() -> None:
 
 def test_redacts_jwt_and_private_key_block() -> None:
     jwt = "eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiIxMjM0NTY3ODkwIn0.dGhpc2lzYWZha2VzaWduYXR1cmU"
-    block = (
-        "-----BEGIN RSA PRIVATE KEY-----\n"
-        "MIIEowIBAAKCAQEAfake\n"
-        "-----END RSA PRIVATE KEY-----"
-    )
+    block = "-----BEGIN RSA PRIVATE KEY-----\nMIIEowIBAAKCAQEAfake\n-----END RSA PRIVATE KEY-----"
     redacted, counts = redact_secrets(f"token={jwt}\n{block}")
 
     assert jwt not in redacted
@@ -207,9 +199,7 @@ def test_hitl_gate_pauses_and_resumes_with_approval(
     assert all(action.approved_by == "analyst" for action in actions)
 
 
-def test_hitl_invalid_decision_fails_closed(
-    soc_db: Path, sample_alert: SecurityAlert
-) -> None:
+def test_hitl_invalid_decision_fails_closed(soc_db: Path, sample_alert: SecurityAlert) -> None:
     graph = build_graph(db_path=str(soc_db))
     start_triage(graph, sample_alert, "test-invalid")
     resumed = resume_triage(graph, "test-invalid", "maybe", decided_by="analyst")
@@ -229,7 +219,9 @@ def test_init_soc_db_is_idempotent(soc_db: Path) -> None:
     connection = duckdb.connect(str(soc_db), read_only=True)
     try:
         counts = {
-            table: connection.execute(f"SELECT COUNT(*) FROM {table}").fetchone()[0]
+            table: connection.execute(
+                f"SELECT COUNT(*) FROM {table}"  # noqa: S608 - fixed table names
+            ).fetchone()[0]
             for table in ("siem_logs", "threat_intel", "asset_inventory")
         }
     finally:

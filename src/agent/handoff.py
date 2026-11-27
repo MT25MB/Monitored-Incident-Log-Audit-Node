@@ -10,7 +10,7 @@ from __future__ import annotations
 import json
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any, Literal, Sequence
+from typing import Any, Literal
 
 from src.monitoring.store import get_hitl_audit, get_recent_runs, init_audit_db
 
@@ -37,9 +37,7 @@ def _decode_pending(raw: str | None) -> list[dict[str, Any]]:
     return [item for item in value if isinstance(item, dict)]
 
 
-def build_handoff(
-    *, db_path: str | Path | None = None, limit: int = 50
-) -> HandoffSummary:
+def build_handoff(*, db_path: str | Path | None = None, limit: int = 50) -> HandoffSummary:
     """Collect completed runs, pending actions, and injection flags."""
     if limit < 1:
         raise ValueError("limit must be >= 1")
@@ -115,26 +113,25 @@ def render_handoff(
         lines.append("- No completed triage runs in this window.")
 
     lines.append("" if fmt == "markdown" else "")
-    lines.append(
-        "## Waiting on HITL" if fmt == "markdown" else "Waiting on HITL"
-    )
+    lines.append("## Waiting on HITL" if fmt == "markdown" else "Waiting on HITL")
     if summary.pending:
         for item in summary.pending:
             lines.append(
-                f"- {item['alert_id']}: {item['action']} on {item['target']} "
+                f"- {item.get('alert_id', 'unknown')}: "
+                f"{item.get('action', 'unspecified action')} on "
+                f"{item.get('target', 'unspecified target')} "
                 "is pending a human decision"
             )
     else:
         lines.append("- No containment actions are waiting for approval.")
 
     lines.append("" if fmt == "markdown" else "")
-    lines.append(
-        "## Prompt-injection flags" if fmt == "markdown" else "Prompt-injection flags"
-    )
+    lines.append("## Prompt-injection flags" if fmt == "markdown" else "Prompt-injection flags")
     if summary.injections:
         for item in summary.injections:
             lines.append(
-                f"- {item['alert_id']}: injection detected, verdict {item['verdict']}"
+                f"- {item.get('alert_id', 'unknown')}: injection detected, "
+                f"verdict {item.get('verdict', 'unknown')}"
             )
     else:
         lines.append("- No injection attempts were flagged.")
@@ -144,8 +141,11 @@ def render_handoff(
     if summary.decisions:
         for item in summary.decisions[:10]:
             lines.append(
-                f"- {item['alert_id']}: {item['action']} on {item['target']} "
-                f"{item['decision']} by {item['reviewer']}"
+                f"- {item.get('alert_id', 'unknown')}: "
+                f"{item.get('action', 'unspecified action')} on "
+                f"{item.get('target', 'unspecified target')} "
+                f"{item.get('decision', 'unknown')} by "
+                f"{item.get('reviewer', 'unknown')}"
             )
     else:
         lines.append("- No human decisions were recorded in this window.")

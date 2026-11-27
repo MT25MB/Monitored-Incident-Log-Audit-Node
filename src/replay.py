@@ -11,9 +11,10 @@ from __future__ import annotations
 import json
 import time
 import uuid
+from collections.abc import Callable, Iterator
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any, Callable, Iterator, Sequence
+from typing import Any
 
 from src.agent.graph import build_graph, resume_triage, start_triage
 from src.schemas import SecurityAlert
@@ -76,7 +77,9 @@ def iter_replay_alerts(
             expected = payload.get("expected") or {} if isinstance(payload, dict) else {}
             record = ReplayRecord(
                 alert=alert,
-                case_id=str(payload.get("case_id", alert.alert_id)) if isinstance(payload, dict) else alert.alert_id,
+                case_id=str(payload.get("case_id", alert.alert_id))
+                if isinstance(payload, dict)
+                else alert.alert_id,
                 source=alert.source,
                 adversarial=bool(expected.get("injection_expected", False)),
             )
@@ -115,9 +118,7 @@ def replay_dataset(
     errors = 0
 
     for index, item in enumerate(
-        iter_replay_alerts(
-            dataset, source=source, adversarial_only=adversarial_only, limit=limit
-        ),
+        iter_replay_alerts(dataset, source=source, adversarial_only=adversarial_only, limit=limit),
         start=1,
     ):
         if index > 1 and delay_sec:
@@ -128,9 +129,7 @@ def replay_dataset(
         thread_id = f"replay-{uuid.uuid4().hex[:8]}"
         try:
             start_triage(graph, item.alert, thread_id)
-            final = resume_triage(
-                graph, thread_id, "rejected", decided_by="replay-harness"
-            )
+            final = resume_triage(graph, thread_id, "rejected", decided_by="replay-harness")
             report = final["report"]
             verdict = report.classification.value
             counts[verdict] = counts.get(verdict, 0) + 1
@@ -145,9 +144,7 @@ def replay_dataset(
                 "mitre": [mapping.technique_id for mapping in report.mitre],
                 "injection_detected": bool(final.get("injection_detected")),
                 "tool_calls": final.get("tool_calls", 0),
-                "latency_ms": round(
-                    sum(float(trace.latency_ms) for trace in traces), 3
-                ),
+                "latency_ms": round(sum(float(trace.latency_ms) for trace in traces), 3),
                 "cost_usd": sum(float(trace.estimated_cost_usd) for trace in traces),
                 "hitl_decision": final.get("hitl_decision"),
             }

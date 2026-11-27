@@ -9,10 +9,11 @@ file-export functions are rejected here as well as by the read-only connection.
 from __future__ import annotations
 
 import re
+from collections.abc import Iterator, Sequence
 from contextlib import contextmanager
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any, Iterator, Sequence
+from typing import Any
 
 import duckdb
 
@@ -28,9 +29,7 @@ __all__ = [
 
 
 #: Tables an investigation query may read.
-ALLOWED_TABLES: frozenset[str] = frozenset(
-    {"siem_logs", "threat_intel", "asset_inventory"}
-)
+ALLOWED_TABLES: frozenset[str] = frozenset({"siem_logs", "threat_intel", "asset_inventory"})
 
 _FORBIDDEN_KEYWORDS = re.compile(
     r"\b(?:insert|update|delete|drop|create|alter|truncate|merge|replace|"
@@ -129,9 +128,7 @@ def validate_readonly_query(
         raise QueryGuardError("query must read from an allowed SIEM table")
     unknown = [name for name in referenced if name not in permitted]
     if unknown:
-        raise QueryGuardError(
-            "table(s) outside the allowed set: " + ", ".join(unknown)
-        )
+        raise QueryGuardError("table(s) outside the allowed set: " + ", ".join(unknown))
 
     return QueryValidation(sql=sql, tables=referenced, normalized=statement)
 
@@ -141,9 +138,7 @@ def validate_parameters(sql: str, params: Sequence[Any]) -> QueryValidation:
     validation = validate_readonly_query(sql)
     expected = len(_PLACEHOLDER.findall(validation.normalized))
     if expected != len(params):
-        raise QueryGuardError(
-            f"expected {expected} bound parameter(s), got {len(params)}"
-        )
+        raise QueryGuardError(f"expected {expected} bound parameter(s), got {len(params)}")
     return validation
 
 
@@ -167,12 +162,10 @@ def execute_readonly(
     """Validate a query, then execute it with bound parameters."""
     validation = validate_parameters(sql, params)
     unexpected = [
-        name for name in validation.tables if name not in {
-            _clean_identifier(table) for table in allowed_tables
-        }
+        name
+        for name in validation.tables
+        if name not in {_clean_identifier(table) for table in allowed_tables}
     ]
     if unexpected:
-        raise QueryGuardError(
-            "table(s) outside this tool's scope: " + ", ".join(unexpected)
-        )
+        raise QueryGuardError("table(s) outside this tool's scope: " + ", ".join(unexpected))
     return connection.execute(sql, list(params))

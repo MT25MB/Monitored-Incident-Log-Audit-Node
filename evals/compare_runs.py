@@ -11,9 +11,10 @@ Usage::
 from __future__ import annotations
 
 import argparse
+from collections.abc import Sequence
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any, Sequence
+from typing import Any
 
 from evals.run_eval import CaseResult, RunArtifact
 
@@ -204,9 +205,7 @@ def render_markdown(comparison: Comparison) -> str:
         ]
     )
     for metric in comparison.metrics:
-        lines.append(
-            f"| {metric.name} | {metric.baseline} | {metric.candidate} | {metric.delta} |"
-        )
+        lines.append(f"| {metric.name} | {metric.baseline} | {metric.candidate} | {metric.delta} |")
 
     lines.extend(["", "## Flipped cases", ""])
     if comparison.flips:
@@ -225,13 +224,9 @@ def render_markdown(comparison: Comparison) -> str:
         lines.append("No cases changed overall pass/fail status.")
 
     if comparison.only_baseline:
-        lines.extend(
-            ["", "Only in baseline: " + ", ".join(comparison.only_baseline)]
-        )
+        lines.extend(["", "Only in baseline: " + ", ".join(comparison.only_baseline)])
     if comparison.only_candidate:
-        lines.extend(
-            ["", "Only in candidate: " + ", ".join(comparison.only_candidate)]
-        )
+        lines.extend(["", "Only in candidate: " + ", ".join(comparison.only_candidate)])
     return "\n".join(lines) + "\n"
 
 
@@ -240,7 +235,9 @@ def main(argv: Sequence[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description="Compare two MILAN evaluation artifacts")
     parser.add_argument("baseline", type=Path, help="Baseline JSON result file")
     parser.add_argument("candidate", type=Path, help="Candidate JSON result file")
-    parser.add_argument("--output-md", type=Path, default=None, help="Write report to Markdown file")
+    parser.add_argument(
+        "--output-md", type=Path, default=None, help="Write report to Markdown file"
+    )
     args = parser.parse_args(argv)
 
     try:

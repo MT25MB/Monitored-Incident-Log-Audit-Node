@@ -76,8 +76,7 @@ def test_iter_replay_alerts_filters(dataset: Path) -> None:
         "GEN-5",
     ]
     assert [
-        r.case_id
-        for r in iter_replay_alerts(dataset, source="sysmon", adversarial_only=True)
+        r.case_id for r in iter_replay_alerts(dataset, source="sysmon", adversarial_only=True)
     ] == ["GEN-5"]
     assert [r.case_id for r in iter_replay_alerts(dataset, limit=2)] == ["GEN-1", "GEN-2"]
 

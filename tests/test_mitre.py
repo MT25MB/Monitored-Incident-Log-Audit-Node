@@ -10,8 +10,8 @@ if str(_ROOT) not in sys.path:
     sys.path.insert(0, str(_ROOT))
 
 from evals.run_eval import (  # noqa: E402
-    ExpectedOutcome,
     EvalCase,
+    ExpectedOutcome,
     JudgeScore,
     grade_case,
 )
@@ -86,12 +86,8 @@ def test_unknown_and_mismatched_mappings_are_clean() -> None:
 
 
 def test_verified_mappings_keeps_order_and_drops_unverified() -> None:
-    known = MitreMapping(
-        technique_id="T1059.001", technique_name="PowerShell", tactic="Execution"
-    )
-    unknown = MitreMapping(
-        technique_id="T9999", technique_name="Unknown", tactic="Execution"
-    )
+    known = MitreMapping(technique_id="T1059.001", technique_name="PowerShell", tactic="Execution")
+    unknown = MitreMapping(technique_id="T9999", technique_name="Unknown", tactic="Execution")
     checks = check_mitre_mappings([known, unknown])
     assert len(checks) == 2
     assert verified_mappings([known, unknown], checks) == (known,)
@@ -177,9 +173,7 @@ def test_grading_excludes_unverified_technique_ids() -> None:
             title="Benign",
             raw_payload="signed installer",
         ),
-        expected=ExpectedOutcome(
-            classification=Classification.BENIGN, mitre=[]
-        ),
+        expected=ExpectedOutcome(classification=Classification.BENIGN, mitre=[]),
     )
     report = TriageReport(
         alert_id="ALT-3",

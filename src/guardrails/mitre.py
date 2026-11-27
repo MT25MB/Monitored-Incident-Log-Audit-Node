@@ -8,8 +8,8 @@ and flag anything it cannot verify without raising an exception.
 
 from __future__ import annotations
 
+from collections.abc import Iterable, Mapping, Sequence
 from dataclasses import dataclass
-from typing import Iterable, Mapping, Sequence
 
 from src.schemas import MitreMapping
 
@@ -44,17 +44,38 @@ KNOWN_TECHNIQUES: Mapping[str, MitreTechnique] = {
     "T1204.002": _tech("T1204.002", "User Execution: Malicious File", "Execution"),
     "T1047": _tech("T1047", "Windows Management Instrumentation", "Execution"),
     # Persistence
-    "T1053.005": _tech("T1053.005", "Scheduled Task/Job: Scheduled Task", "Persistence", "Privilege Escalation"),
+    "T1053.005": _tech(
+        "T1053.005", "Scheduled Task/Job: Scheduled Task", "Persistence", "Privilege Escalation"
+    ),
     "T1098": _tech("T1098", "Account Manipulation", "Persistence", "Privilege Escalation"),
-    "T1098.001": _tech("T1098.001", "Account Manipulation: Additional Cloud Credentials", "Persistence", "Privilege Escalation"),
-    "T1547.001": _tech("T1547.001", "Boot or Logon Autostart Execution: Registry Run Keys", "Persistence", "Privilege Escalation"),
+    "T1098.001": _tech(
+        "T1098.001",
+        "Account Manipulation: Additional Cloud Credentials",
+        "Persistence",
+        "Privilege Escalation",
+    ),
+    "T1547.001": _tech(
+        "T1547.001",
+        "Boot or Logon Autostart Execution: Registry Run Keys",
+        "Persistence",
+        "Privilege Escalation",
+    ),
     # Privilege escalation
-    "T1078": _tech("T1078", "Valid Accounts", "Defense Evasion", "Persistence", "Privilege Escalation", "Initial Access"),
+    "T1078": _tech(
+        "T1078",
+        "Valid Accounts",
+        "Defense Evasion",
+        "Persistence",
+        "Privilege Escalation",
+        "Initial Access",
+    ),
     # Credential access
     "T1003.001": _tech("T1003.001", "OS Credential Dumping: LSASS Memory", "Credential Access"),
     "T1110": _tech("T1110", "Brute Force", "Credential Access"),
     "T1110.003": _tech("T1110.003", "Brute Force: Password Spraying", "Credential Access"),
-    "T1558.003": _tech("T1558.003", "Steal or Forge Kerberos Tickets: Kerberoasting", "Credential Access"),
+    "T1558.003": _tech(
+        "T1558.003", "Steal or Forge Kerberos Tickets: Kerberoasting", "Credential Access"
+    ),
     # Defense evasion
     "T1055": _tech("T1055", "Process Injection", "Defense Evasion", "Privilege Escalation"),
     "T1562.001": _tech("T1562.001", "Impair Defenses: Disable or Modify Tools", "Defense Evasion"),
@@ -63,10 +84,14 @@ KNOWN_TECHNIQUES: Mapping[str, MitreTechnique] = {
     "T1087": _tech("T1087", "Account Discovery", "Discovery"),
     "T1203": _tech("T1203", "Exploitation for Client Execution", "Execution"),
     # Command and control
-    "T1071.001": _tech("T1071.001", "Application Layer Protocol: Web Protocols", "Command and Control"),
+    "T1071.001": _tech(
+        "T1071.001", "Application Layer Protocol: Web Protocols", "Command and Control"
+    ),
     "T1071.004": _tech("T1071.004", "Application Layer Protocol: DNS", "Command and Control"),
     "T1090.003": _tech("T1090.003", "Proxy: Multi-hop Proxy", "Command and Control"),
-    "T1568.002": _tech("T1568.002", "Dynamic Resolution: Domain Generation Algorithms", "Command and Control"),
+    "T1568.002": _tech(
+        "T1568.002", "Dynamic Resolution: Domain Generation Algorithms", "Command and Control"
+    ),
     # Exfiltration
     "T1041": _tech("T1041", "Exfiltration Over C2 Channel", "Exfiltration"),
     "T1048": _tech("T1048", "Exfiltration Over Alternative Protocol", "Exfiltration"),
@@ -141,5 +166,5 @@ def verified_mappings(
     """Return only mappings whose ID and tactic were both verified."""
     results = tuple(check_mitre_mappings(mappings) if checks is None else checks)
     return tuple(
-        mapping for mapping, check in zip(mappings, results) if check.verified
+        mapping for mapping, check in zip(mappings, results, strict=False) if check.verified
     )

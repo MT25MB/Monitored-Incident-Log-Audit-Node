@@ -87,7 +87,9 @@ def test_report_includes_actionable_hints(tmp_path: Path) -> None:
         cases=_summary().case_results,
     )
     groups = group_failures(artifact.cases, latency_threshold_ms=300.0)
-    report = render_report(artifact, groups, path=tmp_path / "latest_run.json", latency_threshold_ms=300.0)
+    report = render_report(
+        artifact, groups, path=tmp_path / "latest_run.json", latency_threshold_ms=300.0
+    )
 
     assert "Misclassification (1)" in report
     assert "Prompt-injection slip (1)" in report
@@ -116,9 +118,7 @@ def test_run_artifact_records_execution_mode(tmp_path: Path) -> None:
 def test_threshold_failures_only_when_requested() -> None:
     summary = _summary()
     assert threshold_failures(summary) == []
-    messages = threshold_failures(
-        summary, min_accuracy=0.95, require_100_injection_block=True
-    )
+    messages = threshold_failures(summary, min_accuracy=0.95, require_100_injection_block=True)
     assert len(messages) == 2
     assert "50%" in messages[0]
     assert "100%" in messages[1]

@@ -10,9 +10,10 @@ from __future__ import annotations
 
 import re
 import uuid
-from datetime import datetime, timezone
+from collections.abc import Mapping
+from datetime import UTC, datetime
 from pathlib import Path
-from typing import Any, Mapping
+from typing import Any
 
 from pydantic import BaseModel, Field, field_validator
 
@@ -59,7 +60,7 @@ class ExportBundle(BaseModel):
     """Complete, validated export of one investigation run."""
 
     schema_version: str = SCHEMA_VERSION
-    exported_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+    exported_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
     run_id: str
     alert_id: str
     report: TriageReport
@@ -105,9 +106,7 @@ def build_export(
         correlation = CorrelationSummary.model_validate(correlation_raw)
     else:
         correlation = correlate(state.get("tool_results") or ())
-    correlation = correlation.model_copy(
-        update={"rationale": scrub_text(correlation.rationale)}
-    )
+    correlation = correlation.model_copy(update={"rationale": scrub_text(correlation.rationale)})
 
     actions = tuple(
         HitlAction(
@@ -146,7 +145,7 @@ def build_export(
     )
 
     bundle = ExportBundle(
-        exported_at=exported_at or datetime.now(timezone.utc),
+        exported_at=exported_at or datetime.now(UTC),
         run_id=run_id or state.get("run_id") or uuid.uuid4().hex,
         alert_id=scrubbed_report.alert_id,
         report=scrubbed_report,

@@ -14,7 +14,7 @@ docstrings. They must be passed through
 from __future__ import annotations
 
 import re
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from enum import Enum
 from typing import Any, Literal
 
@@ -70,7 +70,7 @@ class ContainmentAction(str, Enum):
     ISOLATE_HOST = "isolate_host"
     BLOCK_IP = "block_ip"
     DISABLE_ACCOUNT = "disable_account"
-    REVOKE_TOKEN = "revoke_token"
+    REVOKE_TOKEN = "revoke_token"  # noqa: S105 - containment action name, not a credential
 
 
 # ---------------------------------------------------------------------------
@@ -82,7 +82,7 @@ MITRE_TECHNIQUE_RE = re.compile(r"^T\d{4}(?:\.\d{3})?$")
 
 
 def _utc_now() -> datetime:
-    return datetime.now(timezone.utc)
+    return datetime.now(UTC)
 
 
 # ---------------------------------------------------------------------------
@@ -345,12 +345,16 @@ class TriageReport(BaseModel):
         seen: set[str] = set()
         result: list[Any] = []
         for item in value:
-            key = item.get("technique_id") if isinstance(item, dict) else getattr(item, "technique_id", None)
-            if isinstance(key, str):
-                key = key.strip().upper()
-            if key in seen:
-                continue
-            seen.add(key)
+            raw = (
+                item.get("technique_id")
+                if isinstance(item, dict)
+                else getattr(item, "technique_id", None)
+            )
+            key = raw.strip().upper() if isinstance(raw, str) else None
+            if key is not None:
+                if key in seen:
+                    continue
+                seen.add(key)
             result.append(item)
         return result
 

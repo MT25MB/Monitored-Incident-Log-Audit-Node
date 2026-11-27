@@ -69,7 +69,9 @@ target-version = "py311"
 
 [tool.ruff.lint]
 select = ["E", "F", "I", "UP", "B", "S"]
-ignore = ["S101"]
+# UP042 is intentionally excluded: these enums rely on `str, Enum` semantics for
+# stable serialized values, which StrEnum would change.
+ignore = ["S101", "UP042"]
 
 [tool.mypy]
 python_version = "3.11"

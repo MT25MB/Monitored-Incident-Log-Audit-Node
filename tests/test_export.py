@@ -29,16 +29,13 @@ from src.tools.siem import init_soc_db  # noqa: E402
 @pytest.fixture()
 def completed_state(tmp_path: Path) -> dict:
     db = init_soc_db(tmp_path / "soc.duckdb")
-    graph = build_graph(
-        db_path=str(db), audit_db_path=str(tmp_path / "audit.db")
-    )
+    graph = build_graph(db_path=str(db), audit_db_path=str(tmp_path / "audit.db"))
     alert = SecurityAlert(
         alert_id="ALT-1001",
         severity=Severity.CRITICAL,
         title="C2 beacon",
         raw_payload=(
-            "powershell from 203.0.113.42 to WS-FIN-014 "
-            "password=hunter2 AKIAIOSFODNN7EXAMPLE"
+            "powershell from 203.0.113.42 to WS-FIN-014 password=hunter2 AKIAIOSFODNN7EXAMPLE"
         ),
         source_ip="203.0.113.42",
         hostname="WS-FIN-014",
@@ -127,4 +124,7 @@ def test_cli_triage_can_write_export(tmp_path: Path, capsys) -> None:
     assert "Export written to" in output
     files = list(export_dir.glob("*.json"))
     assert len(files) == 1
-    assert ExportBundle.model_validate_json(files[0].read_text(encoding="utf-8")).alert_id == "ALT-1001"
+    assert (
+        ExportBundle.model_validate_json(files[0].read_text(encoding="utf-8")).alert_id
+        == "ALT-1001"
+    )

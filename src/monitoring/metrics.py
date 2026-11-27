@@ -9,9 +9,10 @@ from __future__ import annotations
 
 import json
 import sqlite3
+from collections.abc import Sequence
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any, Sequence
+from typing import Any
 
 from src.monitoring.store import _resolve_path, init_audit_db
 
@@ -122,9 +123,7 @@ def compute_metrics(*, db_path: str | Path | None = None) -> MetricsSummary:
         injection_flag_rate=round(flagged / total, 4) if total else 0.0,
         hitl_approved=decision_counts.get("approved", 0),
         hitl_rejected=decision_counts.get("rejected", 0),
-        hitl_not_required=sum(
-            1 for run in runs if run.get("hitl_decision") == "not_required"
-        ),
+        hitl_not_required=sum(1 for run in runs if run.get("hitl_decision") == "not_required"),
     )
 
 

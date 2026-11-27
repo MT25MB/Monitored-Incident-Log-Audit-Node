@@ -16,9 +16,10 @@ import argparse
 import json
 import sys
 import uuid
-from datetime import datetime, timezone
+from collections.abc import Sequence
+from datetime import UTC, datetime
 from pathlib import Path
-from typing import Any, Sequence
+from typing import Any
 
 import duckdb
 
@@ -28,9 +29,9 @@ from src.agent.playbooks import get_playbook
 from src.config import Pacer, PacingConfig
 from src.export import write_export
 from src.monitoring.metrics import compute_metrics, metrics_to_dict
-from src.tools.db_guard import execute_readonly
 from src.replay import replay_dataset
 from src.schemas import SecurityAlert
+from src.tools.db_guard import execute_readonly
 from src.tools.siem import init_soc_db
 
 __all__ = ["main"]
@@ -81,7 +82,8 @@ def _print_summary(state: dict[str, Any]) -> None:
     cost = sum(float(trace.estimated_cost_usd) for trace in traces)
     flags = list(state.get("injection_flags") or [])
 
-    print(f"Alert: {state.get('alert').alert_id if state.get('alert') else '-'}")
+    alert = state.get("alert")
+    print(f"Alert: {alert.alert_id if alert else '-'}")
     if report is None:
         print("Verdict: unavailable")
     else:
@@ -89,7 +91,10 @@ def _print_summary(state: dict[str, Any]) -> None:
         print(f"Severity: {report.severity.value}")
         techniques = [item.technique_id for item in report.mitre]
         print(f"MITRE: {', '.join(techniques) if techniques else 'none'}")
-    print(f"Injection detected: {'yes' if state.get('injection_detected') else 'no'} ({len(flags)} flag(s))")
+    print(
+        f"Injection detected: {'yes' if state.get('injection_detected') else 'no'} "
+        f"({len(flags)} flag(s))"
+    )
     print(f"Latency: {latency:.1f} ms across {len(traces)} steps")
     print(f"Tool calls: {state.get('tool_calls', 0)}")
     print(f"Estimated cost: ${cost:.2f}")
@@ -109,7 +114,9 @@ def cmd_init_db(args: argparse.Namespace) -> int:
     try:
         counts = {
             table: execute_readonly(
-                connection, f"SELECT COUNT(*) FROM {table}", allowed_tables=(table,)
+                connection,
+                f"SELECT COUNT(*) FROM {table}",  # noqa: S608 - table is a fixed literal
+                allowed_tables=(table,),
             ).fetchone()[0]
             for table in ("siem_logs", "threat_intel", "asset_inventory")
         }
@@ -144,11 +151,7 @@ def cmd_triage(args: argparse.Namespace) -> int:
         print("ERROR: provide --json-file or --json", file=sys.stderr)
         return 2
     try:
-        raw = (
-            Path(args.json_file).read_text(encoding="utf-8")
-            if args.json_file
-            else args.json
-        )
+        raw = Path(args.json_file).read_text(encoding="utf-8") if args.json_file else args.json
         alert = _load_alert(raw)
     except (OSError, json.JSONDecodeError, ValueError) as exc:
         print(f"ERROR: invalid alert: {exc}", file=sys.stderr)
@@ -199,8 +202,10 @@ def cmd_triage(args: argparse.Namespace) -> int:
 
     final = resume_triage(graph, thread_id, mode, decided_by=args.reviewer)
     print(f"HITL decision: {final.get('hitl_decision')}")
-    print("Executable actions after review: "
-          f"{sum(1 for action in final['report'].recommended_actions if action.is_executable)}")
+    print(
+        "Executable actions after review: "
+        f"{sum(1 for action in final['report'].recommended_actions if action.is_executable)}"
+    )
     _maybe_export(final, args)
     return 0
 
@@ -221,9 +226,7 @@ def cmd_batch(args: argparse.Namespace) -> int:
         audit_db_path=args.audit_db,
         enrich_with_llm=args.enrich_with_llm,
     )
-    pacer = Pacer(
-        PacingConfig.gentle() if args.pace else PacingConfig(enabled=False)
-    )
+    pacer = Pacer(PacingConfig.gentle() if args.pace else PacingConfig(enabled=False))
     results: list[dict[str, Any]] = []
     counts: dict[str, int] = {}
     injection_flags = 0
@@ -233,10 +236,8 @@ def cmd_batch(args: argparse.Namespace) -> int:
         pacer.wait()
         thread_id = f"batch-{uuid.uuid4().hex[:8]}"
         try:
-            paused = start_triage(graph, alert, thread_id)
-            final = resume_triage(
-                graph, thread_id, "rejected", decided_by="cli-batch"
-            )
+            start_triage(graph, alert, thread_id)
+            final = resume_triage(graph, thread_id, "rejected", decided_by="cli-batch")
             report = final["report"]
             verdict = report.classification.value
             counts[verdict] = counts.get(verdict, 0) + 1
@@ -250,9 +251,7 @@ def cmd_batch(args: argparse.Namespace) -> int:
                 "mitre": [item.technique_id for item in report.mitre],
                 "injection_detected": bool(final.get("injection_detected")),
                 "tool_calls": final.get("tool_calls", 0),
-                "latency_ms": round(
-                    sum(float(trace.latency_ms) for trace in traces), 3
-                ),
+                "latency_ms": round(sum(float(trace.latency_ms) for trace in traces), 3),
                 "cost_usd": sum(float(trace.estimated_cost_usd) for trace in traces),
                 "hitl_decision": final.get("hitl_decision"),
             }
@@ -278,9 +277,7 @@ def cmd_batch(args: argparse.Namespace) -> int:
         destination.write_text(
             json.dumps(
                 {
-                    "generated_at": datetime.now(timezone.utc).isoformat(
-                        timespec="seconds"
-                    ),
+                    "generated_at": datetime.now(UTC).isoformat(timespec="seconds"),
                     "dataset": str(args.dataset),
                     "total": len(results),
                     "counts": counts,
@@ -338,9 +335,7 @@ def cmd_replay(args: argparse.Namespace) -> int:
             or "none"
         )
     )
-    print(
-        f"Adversarial cases: {summary.adversarial_count} · Errors: {summary.errors}"
-    )
+    print(f"Adversarial cases: {summary.adversarial_count} · Errors: {summary.errors}")
 
     if args.output_json:
         destination = Path(args.output_json)
@@ -386,8 +381,7 @@ def cmd_metrics(args: argparse.Namespace) -> int:
     """Print aggregate metrics from the SQLite audit store."""
     summary = compute_metrics(db_path=args.audit_db)
     providers = (
-        ", ".join(f"{name}={count}" for name, count in summary.provider_usage.items())
-        or "none"
+        ", ".join(f"{name}={count}" for name, count in summary.provider_usage.items()) or "none"
     )
     print("MILAN monitoring summary")
     print(
@@ -412,8 +406,7 @@ def cmd_metrics(args: argparse.Namespace) -> int:
         f"Cost: ${summary.estimated_cost_usd:.2f}"
     )
     print(
-        f"Injection flagged: {summary.injection_flagged_runs} "
-        f"({summary.injection_flag_rate:.0%})"
+        f"Injection flagged: {summary.injection_flagged_runs} ({summary.injection_flag_rate:.0%})"
     )
     print(
         f"HITL: approved={summary.hitl_approved}, "
@@ -424,9 +417,7 @@ def cmd_metrics(args: argparse.Namespace) -> int:
     if args.output_json:
         destination = Path(args.output_json)
         destination.parent.mkdir(parents=True, exist_ok=True)
-        destination.write_text(
-            json.dumps(metrics_to_dict(summary), indent=2), encoding="utf-8"
-        )
+        destination.write_text(json.dumps(metrics_to_dict(summary), indent=2), encoding="utf-8")
         print(f"Metrics written to {destination}")
     return 0
 
@@ -479,9 +470,7 @@ def build_parser() -> argparse.ArgumentParser:
         help="JSONL alert file (default: full benchmark)",
     )
     batch.add_argument("--limit", type=int, default=None, help="Run only the first N alerts")
-    batch.add_argument(
-        "--pace", action="store_true", help="Apply gentle pacing between alerts"
-    )
+    batch.add_argument("--pace", action="store_true", help="Apply gentle pacing between alerts")
     batch.add_argument("--output-json", type=Path, default=None, help="Write a result summary")
     batch.add_argument("--db-path", default=None, help="Override the DuckDB path")
     batch.add_argument("--audit-db", default=None, help="Override the SQLite audit path")

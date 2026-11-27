@@ -127,9 +127,7 @@ def test_metrics_aggregate_from_stored_runs(audit_db: Path) -> None:
     assert metrics.injection_detections == 1
 
 
-def test_graph_persists_one_run_across_hitl_resume(
-    tmp_path: Path, audit_db: Path
-) -> None:
+def test_graph_persists_one_run_across_hitl_resume(tmp_path: Path, audit_db: Path) -> None:
     siem_db = init_soc_db(tmp_path / "siem.duckdb")
     alert = SecurityAlert(
         alert_id="ALT-1001",
@@ -155,6 +153,4 @@ def test_graph_persists_one_run_across_hitl_resume(
             "SELECT traces_json FROM investigation_runs WHERE run_id = ?",
             (runs[0]["run_id"],),
         ).fetchone()[0]
-    assert any(
-        item["name"] == "hitl_gate" for item in traces_from_json(traces_json)
-    )
+    assert any(item["name"] == "hitl_gate" for item in traces_from_json(traces_json))

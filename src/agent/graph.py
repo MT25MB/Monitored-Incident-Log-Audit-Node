@@ -17,10 +17,11 @@ import logging
 import re
 import time
 import uuid
+from collections.abc import Callable
 from dataclasses import asdict
 from functools import partial
 from pathlib import Path
-from typing import Any, Callable
+from typing import Any
 
 from langgraph.checkpoint.memory import MemorySaver
 from langgraph.graph import END, StateGraph
@@ -188,13 +189,9 @@ def _persist_run(
                 injection_detected=state.injection_detected,
                 total_latency_ms=round(sum(trace.latency_ms for trace in traces), 3),
                 step_count=state.step,
-                provider_used=next(
-                    (trace.provider for trace in traces if trace.provider), "local"
-                ),
+                provider_used=next((trace.provider for trace in traces if trace.provider), "local"),
                 fallback_count=sum(1 for trace in traces if trace.fallback_from),
-                traces_json=json.dumps(
-                    [trace.model_dump(mode="json") for trace in traces]
-                ),
+                traces_json=json.dumps([trace.model_dump(mode="json") for trace in traces]),
                 pending_actions_json=json.dumps(
                     [
                         {
@@ -227,7 +224,8 @@ def ingest_and_sanitize(state: TriageState, *, db_path: str | None = None) -> di
         error = "no SecurityAlert supplied to the graph"
         return {
             "error": error,
-            "traces": state.traces + [_trace(0, "ingest_and_sanitize", started, success=False, error=error)],
+            "traces": state.traces
+            + [_trace(0, "ingest_and_sanitize", started, success=False, error=error)],
         }
 
     init_soc_db(db_path)
@@ -320,7 +318,8 @@ def execute_tool(
         error = f"blocked unauthorised tool: {tool_name!r}"
         return {
             "tool_calls": state.tool_calls + 1,
-            "traces": state.traces + [_trace(state.step, "execute_tool", started, success=False, error=error)],
+            "traces": state.traces
+            + [_trace(state.step, "execute_tool", started, success=False, error=error)],
         }
 
     result = tool(step=state.step, db_path=db_path, **args)
@@ -437,7 +436,8 @@ def synthesize(
         error = "cannot synthesize without an alert"
         return {
             "error": error,
-            "traces": state.traces + [_trace(state.step, "synthesize", started, success=False, error=error)],
+            "traces": state.traces
+            + [_trace(state.step, "synthesize", started, success=False, error=error)],
         }
 
     intel = _intel_rows(state)
@@ -477,9 +477,7 @@ def synthesize(
     parts.append(correlation.rationale)
     if unverified_ids:
         parts.append(
-            "Unverified MITRE ID(s) were left out of the report: "
-            + ", ".join(unverified_ids)
-            + "."
+            "Unverified MITRE ID(s) were left out of the report: " + ", ".join(unverified_ids) + "."
         )
     if not state.tool_results:
         parts.append("No tool evidence was collected.")
@@ -566,9 +564,7 @@ class MemorySink:
         self.traces.append(trace)
 
 
-def hitl_gate(
-    state: TriageState, *, audit_db_path: str | Path | None = None
-) -> dict[str, Any]:
+def hitl_gate(state: TriageState, *, audit_db_path: str | Path | None = None) -> dict[str, Any]:
     """Apply the human approval/rejection after the graph resumes.
 
     An absent or invalid decision is treated as **rejected** — a fail-safe that

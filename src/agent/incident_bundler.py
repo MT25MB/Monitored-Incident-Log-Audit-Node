@@ -10,9 +10,9 @@ from __future__ import annotations
 
 import hashlib
 import re
+from collections.abc import Iterable, Sequence
 from dataclasses import dataclass
-from datetime import datetime, timedelta, timezone
-from typing import Iterable, Sequence
+from datetime import UTC, datetime, timedelta
 
 from src.schemas import SecurityAlert, Severity
 
@@ -82,8 +82,8 @@ class IncidentContext:
 
 
 def _as_utc(value: datetime) -> datetime:
-    normalized = value if value.tzinfo else value.replace(tzinfo=timezone.utc)
-    return normalized.astimezone(timezone.utc)
+    normalized = value if value.tzinfo else value.replace(tzinfo=UTC)
+    return normalized.astimezone(UTC)
 
 
 def extract_entities(alert: SecurityAlert) -> frozenset[str]:
@@ -107,7 +107,7 @@ def extract_entities(alert: SecurityAlert) -> frozenset[str]:
 
 
 def _incident_id(alert_ids: Sequence[str]) -> str:
-    digest = hashlib.sha1("|".join(sorted(alert_ids)).encode("utf-8")).hexdigest()
+    digest = hashlib.sha256("|".join(sorted(alert_ids)).encode("utf-8")).hexdigest()
     return f"INC-{digest[:10]}"
 
 
@@ -153,8 +153,7 @@ def bundle_alerts(
         matches = [
             component
             for component in components
-            if when - component.first <= window
-            and not entities.isdisjoint(component.entities)
+            if when - component.first <= window and not entities.isdisjoint(component.entities)
         ]
 
         if matches:
@@ -162,11 +161,8 @@ def bundle_alerts(
             # two overlapping incidents behind.
             matched_ids = {id(component) for component in matches}
             merged = _Component(
-                indices=[item for component in matches for item in component.indices]
-                + [index],
-                entities=set().union(
-                    *(component.entities for component in matches), entities
-                ),
+                indices=[item for component in matches for item in component.indices] + [index],
+                entities=set().union(*(component.entities for component in matches), entities),
                 first=min(component.first for component in matches),
                 last=when,
             )
@@ -179,9 +175,7 @@ def bundle_alerts(
         indices = sorted(set(component.indices))
         members = tuple(ordered[index] for index in indices)
         entity_keys = tuple(sorted(component.entities))
-        severity = max(
-            (alert.severity for alert in members), key=lambda item: _SEVERITY_RANK[item]
-        )
+        severity = max((alert.severity for alert in members), key=lambda item: _SEVERITY_RANK[item])
         incidents.append(
             IncidentContext(
                 incident_id=_incident_id(tuple(alert.alert_id for alert in members)),

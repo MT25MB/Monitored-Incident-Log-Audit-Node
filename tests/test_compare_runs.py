@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import json
 import sys
 from pathlib import Path
 
@@ -131,9 +130,7 @@ def test_comparison_labels_execution_modes() -> None:
 
 def test_cli_writes_markdown_report(tmp_path: Path, capsys) -> None:
     baseline = _write(tmp_path / "baseline.json", _artifact((_case("C1"),)))
-    candidate = _write(
-        tmp_path / "candidate.json", _artifact((_case("C1", mitre=False),))
-    )
+    candidate = _write(tmp_path / "candidate.json", _artifact((_case("C1", mitre=False),)))
     output = tmp_path / "comparison.md"
 
     exit_code = main([str(baseline), str(candidate), "--output-md", str(output)])

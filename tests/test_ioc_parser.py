@@ -42,8 +42,7 @@ def test_invalid_ipv4_is_dropped_and_order_is_stable() -> None:
 
 def test_secret_like_values_are_not_returned_as_iocs() -> None:
     iocs = extract_iocs(
-        f"api_key={_SHA} Bearer abcdefgh12345678 password=hunter2 "
-        "from 203.0.113.42"
+        f"api_key={_SHA} Bearer abcdefgh12345678 password=hunter2 from 203.0.113.42"
     )
     assert _SHA not in iocs.sha256_hashes
     assert iocs.ip_addresses == ("203.0.113.42",)
@@ -78,7 +77,7 @@ def test_planner_uses_parsed_indicator() -> None:
     state = TriageState(
         alert=alert,
         step=1,
-        sanitized_payload="<untrusted_log_payload>query to tunnel-c2.example.net</untrusted_log_payload>",
+        sanitized_payload="<untrusted>query to tunnel-c2.example.net</untrusted>",
     )
     action = _next_action(state)
     assert action is not None

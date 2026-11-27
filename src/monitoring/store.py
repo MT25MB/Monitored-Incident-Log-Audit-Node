@@ -14,10 +14,11 @@ from __future__ import annotations
 import json
 import os
 import sqlite3
+from collections.abc import Sequence
 from dataclasses import dataclass, field
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
-from typing import Any, Sequence
+from typing import Any
 
 __all__ = [
     "HITLAuditEntry",
@@ -43,7 +44,7 @@ def _resolve_path(db_path: str | Path | None) -> Path:
 
 
 def _utc_now() -> str:
-    return datetime.now(timezone.utc).isoformat(timespec="milliseconds")
+    return datetime.now(UTC).isoformat(timespec="milliseconds")
 
 
 # ---------------------------------------------------------------------------
@@ -161,9 +162,7 @@ def init_audit_db(db_path: str | Path | None = None) -> Path:
     with sqlite3.connect(path) as connection:
         for statement in _DDL:
             connection.execute(statement)
-        columns = {
-            row[1] for row in connection.execute("PRAGMA table_info(investigation_runs)")
-        }
+        columns = {row[1] for row in connection.execute("PRAGMA table_info(investigation_runs)")}
         if "pending_actions_json" not in columns:
             connection.execute(
                 "ALTER TABLE investigation_runs "

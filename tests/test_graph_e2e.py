@@ -83,8 +83,7 @@ def _true_positive() -> SecurityAlert:
         severity=Severity.CRITICAL,
         title="Encoded PowerShell with C2 beacon",
         raw_payload=(
-            "powershell.exe -enc JABz from 203.0.113.42 to WS-FIN-014 "
-            "on port 443 every 60s"
+            "powershell.exe -enc JABz from 203.0.113.42 to WS-FIN-014 on port 443 every 60s"
         ),
         source_ip="203.0.113.42",
         hostname="WS-FIN-014",

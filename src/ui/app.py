@@ -199,8 +199,7 @@ def _render_report(state: dict[str, Any]) -> None:
 
     st.subheader("Triage report")
     st.write(
-        f"**MITRE ATT&CK:** "
-        + (", ".join(item.technique_id for item in report.mitre) or "none")
+        "**MITRE ATT&CK:** " + (", ".join(item.technique_id for item in report.mitre) or "none")
     )
     iocs = report.iocs
     st.write(
@@ -215,8 +214,7 @@ def _render_report(state: dict[str, Any]) -> None:
         return
     for proposal in report.recommended_actions:
         with st.expander(
-            f"{proposal.action.value} → {proposal.target} "
-            f"({proposal.approval_status.value})"
+            f"{proposal.action.value} → {proposal.target} ({proposal.approval_status.value})"
         ):
             st.write(proposal.rationale)
             st.write(
@@ -288,8 +286,7 @@ def _render_monitoring() -> None:
     second[3].metric("Estimated cost", f"${metrics.estimated_cost_usd:.2f}")
 
     providers = (
-        ", ".join(f"{name}: {count}" for name, count in metrics.provider_usage.items())
-        or "none"
+        ", ".join(f"{name}: {count}" for name, count in metrics.provider_usage.items()) or "none"
     )
     st.caption(
         f"{metrics.total_runs} stored runs · {metrics.completed_runs} completed · "
@@ -336,9 +333,7 @@ def main() -> None:
         )
         st.caption("All data is synthetic. LLM calls use free tiers only.")
 
-    triage_tab, monitor_tab = st.tabs(
-        ["Alert Triage", "Monitoring & Audit History"]
-    )
+    triage_tab, monitor_tab = st.tabs(["Alert Triage", "Monitoring & Audit History"])
 
     with triage_tab:
         _render_alert_form()

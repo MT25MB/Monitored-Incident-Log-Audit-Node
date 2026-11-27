@@ -105,14 +105,15 @@ def test_execute_readonly_requires_table_in_tool_scope(tmp_path: Path) -> None:
             )
 
         with pytest.raises(QueryGuardError):
-            execute_readonly(
-                connection, "DELETE FROM siem_logs", allowed_tables=("siem_logs",)
-            )
+            execute_readonly(connection, "DELETE FROM siem_logs", allowed_tables=("siem_logs",))
 
     with readonly_connection(db) as connection:
-        assert execute_readonly(
-            connection, "SELECT COUNT(*) FROM siem_logs", allowed_tables=("siem_logs",)
-        ).fetchone()[0] == 1
+        assert (
+            execute_readonly(
+                connection, "SELECT COUNT(*) FROM siem_logs", allowed_tables=("siem_logs",)
+            ).fetchone()[0]
+            == 1
+        )
 
 
 def test_siem_tools_still_work_through_guard(tmp_path: Path) -> None:

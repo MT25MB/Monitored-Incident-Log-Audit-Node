@@ -28,10 +28,11 @@ import argparse
 import json
 import re
 import sys
+from collections.abc import Sequence
 from dataclasses import replace
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
-from typing import Any, Sequence
+from typing import Any
 
 from pydantic import BaseModel, Field
 
@@ -41,13 +42,13 @@ if str(_ROOT) not in sys.path:
     sys.path.insert(0, str(_ROOT))
 
 from src.agent.graph import MAX_INVESTIGATION_STEPS, build_graph, resume_triage, start_triage  # noqa: E402
-from src.guardrails.mitre import check_mitre_mappings  # noqa: E402
 from src.config import (  # noqa: E402
     LLMError,
     PacingConfig,
     Settings,
     invoke_structured_with_fallback,
 )
+from src.guardrails.mitre import check_mitre_mappings  # noqa: E402
 from src.schemas import Classification, SecurityAlert, TriageReport  # noqa: E402
 
 __all__ = [
@@ -306,19 +307,18 @@ def grade_case(
     actual_mitre = tuple(
         sorted(
             mapping.technique_id
-            for mapping, check in zip(report.mitre, checks)
+            for mapping, check in zip(report.mitre, checks, strict=False)
             if check.verified
         )
     )
-    unverified_mitre_ids = tuple(
-        check.technique_id for check in checks if not check.verified
-    )
+    unverified_mitre_ids = tuple(check.technique_id for check in checks if not check.verified)
 
     verdict_pass = report.classification is case.expected.classification
     mitre_pass = expected_mitre == actual_mitre
 
     detected = bool(before_state.get("injection_detected")) or any(
-        bool(getattr(trace, "injection_detected", False)) for trace in before_state.get("traces", [])
+        bool(getattr(trace, "injection_detected", False))
+        for trace in before_state.get("traces", [])
     )
     if case.expected.injection_expected:
         injection_pass = detected and all(
@@ -398,8 +398,7 @@ def run_benchmark(
                 judge=judge,
             )
             all_latencies.extend(
-                float(getattr(trace, "latency_ms", 0.0))
-                for trace in after.get("traces", ())
+                float(getattr(trace, "latency_ms", 0.0)) for trace in after.get("traces", ())
             )
             total_cost += sum(
                 float(getattr(trace, "estimated_cost_usd", 0.0))
@@ -458,7 +457,7 @@ def render_markdown(summary: BenchmarkSummary) -> str:
     lines = [
         "# MILAN Evaluation Benchmark",
         "",
-        f"Generated: {datetime.now(timezone.utc).isoformat(timespec='seconds')}",
+        f"Generated: {datetime.now(UTC).isoformat(timespec='seconds')}",
         "",
         (
             "> Offline mock dry run. No LLM APIs were called; verdicts come from "
@@ -469,7 +468,8 @@ def render_markdown(summary: BenchmarkSummary) -> str:
         "",
         "## Per-case results",
         "",
-        "| Case | Alert | Expected | Actual | Verdict | MITRE | Injection | Steps | Ground | Latency (ms) | Result |",
+        "| Case | Alert | Expected | Actual | Verdict | MITRE | Injection | "
+        "Steps | Ground | Latency (ms) | Result |",
         "| --- | --- | --- | --- | --- | --- | --- | ---: | ---: | ---: | --- |",
     ]
     for result in summary.case_results:
@@ -525,7 +525,7 @@ def write_run_artifact(
 ) -> Path:
     """Write compact per-case results for the failure analyzer."""
     artifact = RunArtifact(
-        generated_at=datetime.now(timezone.utc).isoformat(timespec="seconds"),
+        generated_at=datetime.now(UTC).isoformat(timespec="seconds"),
         dataset=str(dataset),
         summary=summary.model_dump(mode="json", exclude={"case_results"}),
         cases=summary.case_results,
@@ -634,9 +634,7 @@ def main(argv: Sequence[str] | None = None) -> int:
     report = render_markdown(summary)
     args.output_md.parent.mkdir(parents=True, exist_ok=True)
     args.output_md.write_text(report, encoding="utf-8")
-    artifact_path = write_run_artifact(
-        summary, dataset=args.dataset, path=args.output_json
-    )
+    artifact_path = write_run_artifact(summary, dataset=args.dataset, path=args.output_json)
     print(report)
     print(f"Per-case results written to {artifact_path}")
 

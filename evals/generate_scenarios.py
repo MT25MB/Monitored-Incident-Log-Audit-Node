@@ -20,8 +20,9 @@ import argparse
 import hashlib
 import json
 import sys
+from collections.abc import Sequence
 from pathlib import Path
-from typing import Any, Sequence
+from typing import Any
 
 _ROOT = Path(__file__).resolve().parents[1]
 DEFAULT_OUTPUT = _ROOT / "evals" / "datasets" / "generated_scenarios.jsonl"
@@ -252,9 +253,7 @@ def make_case(template: dict[str, Any], sequence: int) -> dict[str, Any]:
     case_id = f"GEN-{family}-{sequence + 1:03d}"
     alert_id = f"ALT-{5001 + sequence}"
     source_ip = f"198.51.100.{90 + sequence}"
-    message = template["message"].format(
-        indicator=indicator, hostname=hostname, slot=slot
-    )
+    message = template["message"].format(indicator=indicator, hostname=hostname, slot=slot)
     injection_expected = family == "ADV"
 
     return {
@@ -317,12 +316,8 @@ def generate(
 
 def main(argv: Sequence[str] | None = None) -> int:
     """CLI entry point."""
-    parser = argparse.ArgumentParser(
-        description="Generate deterministic synthetic SOC scenarios"
-    )
-    parser.add_argument(
-        "--output", type=Path, default=DEFAULT_OUTPUT, help="Target JSONL file"
-    )
+    parser = argparse.ArgumentParser(description="Generate deterministic synthetic SOC scenarios")
+    parser.add_argument("--output", type=Path, default=DEFAULT_OUTPUT, help="Target JSONL file")
     parser.add_argument("--count", type=int, default=12, help=f"Number of cases (1-{MAX_COUNT})")
     parser.add_argument("--seed", type=int, default=7, help="Template rotation seed")
     parser.add_argument(
@@ -337,9 +332,7 @@ def main(argv: Sequence[str] | None = None) -> int:
     args = parser.parse_args(argv)
 
     try:
-        cases = generate(
-            count=args.count, seed=args.seed, start_sequence=args.start_sequence
-        )
+        cases = generate(count=args.count, seed=args.seed, start_sequence=args.start_sequence)
     except ValueError as exc:
         print(f"ERROR: {exc}", file=sys.stderr)
         return 2

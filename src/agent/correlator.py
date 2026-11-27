@@ -9,7 +9,8 @@ up, and a suggested severity floor.
 
 from __future__ import annotations
 
-from typing import Any, Iterable, Mapping, Sequence
+from collections.abc import Iterable, Mapping, Sequence
+from typing import Any
 
 from pydantic import BaseModel, Field
 
@@ -108,9 +109,7 @@ def _suggest_floor(
     process_anomalies: int,
     injection_detected: bool,
 ) -> Severity:
-    if max_confidence >= 0.9 or (
-        max_confidence >= 0.8 and criticality in {"high", "critical"}
-    ):
+    if max_confidence >= 0.9 or (max_confidence >= 0.8 and criticality in {"high", "critical"}):
         return Severity.CRITICAL
     if (
         max_confidence >= 0.8
@@ -158,11 +157,7 @@ def correlate(
             IndicatorMatch(
                 indicator=indicator,
                 confidence=float(row.get("confidence") or 0.0),
-                log_count=sum(
-                    1
-                    for log in logs
-                    if indicator in _log_indicators(log)
-                ),
+                log_count=sum(1 for log in logs if indicator in _log_indicators(log)),
                 hosts=tuple(sorted(hosts)),
             )
         )

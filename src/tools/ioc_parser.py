@@ -7,8 +7,9 @@ never become indicators. The helpers are pure, ordered, and de-duplicated.
 from __future__ import annotations
 
 import re
+from collections.abc import Iterable, Mapping
 from dataclasses import dataclass
-from typing import Any, Iterable, Mapping
+from typing import Any
 
 from src.guardrails.sanitizer import redact_secrets
 
@@ -52,9 +53,7 @@ _LINUX_PROCESSES = (
     "systemd",
     "nginx",
 )
-_KNOWN_PROCESS_NAMES = frozenset(
-    name.lower() for name in _WINDOWS_PROCESSES + _LINUX_PROCESSES
-)
+_KNOWN_PROCESS_NAMES = frozenset(name.lower() for name in _WINDOWS_PROCESSES + _LINUX_PROCESSES)
 _NON_DOMAIN_TLDS = frozenset(
     {"exe", "dll", "ps1", "sh", "py", "bin", "log", "json", "yaml", "yml", "csv", "xml"}
 )
@@ -123,9 +122,7 @@ def extract_iocs(text: str) -> IocSet:
         raise TypeError("text must be str")
     cleaned = redact_secrets(text)[0]
 
-    ips = _ordered_unique(
-        value for value in _IPV4_RE.findall(cleaned) if _valid_ipv4(value)
-    )
+    ips = _ordered_unique(value for value in _IPV4_RE.findall(cleaned) if _valid_ipv4(value))
     domains = _ordered_unique(
         value.lower().rstrip(".")
         for value in _DOMAIN_RE.findall(cleaned)
@@ -138,9 +135,7 @@ def extract_iocs(text: str) -> IocSet:
         domains=domains,
         sha256_hashes=_ordered_unique(_SHA256_RE.findall(cleaned)),
         md5_hashes=_ordered_unique(_MD5_RE.findall(cleaned)),
-        process_names=_ordered_unique(
-            value.lower() for value in _PROCESS_RE.findall(cleaned)
-        ),
+        process_names=_ordered_unique(value.lower() for value in _PROCESS_RE.findall(cleaned)),
     )
 
 
@@ -155,17 +150,11 @@ def extract_iocs_from_rows(rows: Iterable[Mapping[str, Any]]) -> IocSet:
 
     parsed = [extract_iocs(text) for text in texts]
     return IocSet(
-        ip_addresses=_ordered_unique(
-            item for result in parsed for item in result.ip_addresses
-        ),
+        ip_addresses=_ordered_unique(item for result in parsed for item in result.ip_addresses),
         domains=_ordered_unique(item for result in parsed for item in result.domains),
-        sha256_hashes=_ordered_unique(
-            item for result in parsed for item in result.sha256_hashes
-        ),
+        sha256_hashes=_ordered_unique(item for result in parsed for item in result.sha256_hashes),
         md5_hashes=_ordered_unique(item for result in parsed for item in result.md5_hashes),
-        process_names=_ordered_unique(
-            item for result in parsed for item in result.process_names
-        ),
+        process_names=_ordered_unique(item for result in parsed for item in result.process_names),
     )
 
 

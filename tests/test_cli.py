@@ -13,7 +13,6 @@ if str(_ROOT) not in sys.path:
 from src.cli import main  # noqa: E402
 from src.monitoring.store import get_hitl_audit  # noqa: E402
 
-
 _ALERT = {
     "alert_id": "ALT-1001",
     "severity": "critical",
@@ -85,10 +84,7 @@ def test_triage_instructions_mode_does_not_execute(tmp_path: Path, capsys) -> No
 def test_batch_limits_and_writes_results(tmp_path: Path, capsys) -> None:
     dataset = tmp_path / "alerts.jsonl"
     dataset.write_text(
-        "\n".join(
-            json.dumps({"alert": dict(_ALERT, alert_id=f"ALT-{index}")})
-            for index in (1, 2)
-        )
+        "\n".join(json.dumps({"alert": dict(_ALERT, alert_id=f"ALT-{index}")}) for index in (1, 2))
         + "\n",
         encoding="utf-8",
     )

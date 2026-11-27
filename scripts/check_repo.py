@@ -9,10 +9,10 @@ from __future__ import annotations
 import argparse
 import json
 import sys
+from collections.abc import Sequence
 from dataclasses import dataclass, field
 from html.parser import HTMLParser
 from pathlib import Path
-from typing import Sequence
 
 _ROOT = Path(__file__).resolve().parents[1]
 if str(_ROOT) not in sys.path:
@@ -152,11 +152,11 @@ def check_dataset(path: str | Path) -> CheckResult:
     return CheckResult("benchmark dataset", True, f"{count} case(s) validated")
 
 
-def run_checks(
-    *, root: str | Path = _ROOT, dataset: str | Path | None = None
-) -> Report:
+def run_checks(*, root: str | Path = _ROOT, dataset: str | Path | None = None) -> Report:
     """Run every check and collect the results."""
-    target = Path(dataset) if dataset is not None else Path(root) / "evals/datasets/full_benchmark.jsonl"
+    target = (
+        Path(dataset) if dataset is not None else Path(root) / "evals/datasets/full_benchmark.jsonl"
+    )
     return Report(checks=(check_links(root), check_dataset(target)))
 
 

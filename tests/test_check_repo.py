@@ -31,9 +31,7 @@ _MINIMAL_ALERT = {
 def _make_repo(tmp_path: Path) -> Path:
     (tmp_path / "docs").mkdir()
     (tmp_path / "evals/datasets").mkdir(parents=True)
-    (tmp_path / "README.md").write_text(
-        "# Test\n\n![Logo](docs/logo.png)\n", encoding="utf-8"
-    )
+    (tmp_path / "README.md").write_text("# Test\n\n![Logo](docs/logo.png)\n", encoding="utf-8")
     (tmp_path / "docs/README.md").write_text("# Docs\n", encoding="utf-8")
     (tmp_path / "docs/index.html").write_text(
         '<html><body><img src="logo.png" alt="logo">'

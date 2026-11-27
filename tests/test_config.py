@@ -67,9 +67,7 @@ def test_ollama_disabled_by_default() -> None:
 
 
 def test_ollama_config_from_env() -> None:
-    settings = Settings.from_env(
-        {"OLLAMA_ENABLED": "true", "LLM_PROVIDER_ORDER": "ollama"}
-    )
+    settings = Settings.from_env({"OLLAMA_ENABLED": "true", "LLM_PROVIDER_ORDER": "ollama"})
     config = settings.providers[0]
     assert config.provider is Provider.OLLAMA
     assert config.base_url == "http://localhost:11434/v1"

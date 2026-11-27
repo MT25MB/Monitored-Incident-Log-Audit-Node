@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import sys
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 
 import pytest
 
@@ -14,8 +14,7 @@ if str(_ROOT) not in sys.path:
 from src.agent.incident_bundler import bundle_alerts, extract_entities  # noqa: E402
 from src.schemas import SecurityAlert, Severity  # noqa: E402
 
-
-_T0 = datetime(2026, 11, 25, 9, 0, tzinfo=timezone.utc)
+_T0 = datetime(2026, 11, 25, 9, 0, tzinfo=UTC)
 
 
 def _alert(
