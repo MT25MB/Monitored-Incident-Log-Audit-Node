@@ -22,6 +22,7 @@ from typing import Any, Iterable, Iterator, Mapping, Sequence
 import duckdb
 
 from src.schemas import StepTrace
+from src.tools.db_guard import QueryGuardError, execute_readonly
 
 __all__ = [
     "SEED_ASSET_COUNT",
@@ -711,9 +712,9 @@ def query_siem_logs(
 
     try:
         with _readonly_connection(db_path) as connection:
-            result = connection.execute(sql, params)
+            result = execute_readonly(connection, sql, params, allowed_tables=("siem_logs",))
             rows = _rows_to_dicts(connection, result)
-    except (duckdb.Error, OSError) as exc:
+    except (duckdb.Error, OSError, QueryGuardError) as exc:
         return SiemQueryResult(rows=(), trace=_tool_trace(step, "query_siem_logs", started, str(exc)))
 
     return SiemQueryResult(rows=rows, trace=_tool_trace(step, "query_siem_logs", started))
@@ -740,9 +741,14 @@ def check_threat_intel(
     )
     try:
         with _readonly_connection(db_path) as connection:
-            result = connection.execute(sql, [indicator.strip(), _bounded_limit(limit)])
+            result = execute_readonly(
+                connection,
+                sql,
+                [indicator.strip(), _bounded_limit(limit)],
+                allowed_tables=("threat_intel",),
+            )
             rows = _rows_to_dicts(connection, result)
-    except (duckdb.Error, OSError) as exc:
+    except (duckdb.Error, OSError, QueryGuardError) as exc:
         return SiemQueryResult(rows=(), trace=_tool_trace(step, "check_threat_intel", started, str(exc)))
 
     return SiemQueryResult(rows=rows, trace=_tool_trace(step, "check_threat_intel", started))
@@ -783,9 +789,11 @@ def lookup_asset_inventory(
 
     try:
         with _readonly_connection(db_path) as connection:
-            result = connection.execute(sql, params)
+            result = execute_readonly(
+                connection, sql, params, allowed_tables=("asset_inventory",)
+            )
             rows = _rows_to_dicts(connection, result)
-    except (duckdb.Error, OSError) as exc:
+    except (duckdb.Error, OSError, QueryGuardError) as exc:
         return SiemQueryResult(
             rows=(),
             trace=_tool_trace(step, "lookup_asset_inventory", started, str(exc)),

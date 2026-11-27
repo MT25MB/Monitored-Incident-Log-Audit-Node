@@ -27,6 +27,7 @@ from src.agent.playbooks import get_playbook
 from src.config import Pacer, PacingConfig
 from src.export import write_export
 from src.monitoring.metrics import compute_metrics, metrics_to_dict
+from src.tools.db_guard import execute_readonly
 from src.replay import replay_dataset
 from src.schemas import SecurityAlert
 from src.tools.siem import init_soc_db
@@ -106,7 +107,9 @@ def cmd_init_db(args: argparse.Namespace) -> int:
     connection = duckdb.connect(str(path), read_only=True)
     try:
         counts = {
-            table: connection.execute(f"SELECT COUNT(*) FROM {table}").fetchone()[0]
+            table: execute_readonly(
+                connection, f"SELECT COUNT(*) FROM {table}", allowed_tables=(table,)
+            ).fetchone()[0]
             for table in ("siem_logs", "threat_intel", "asset_inventory")
         }
     finally:
